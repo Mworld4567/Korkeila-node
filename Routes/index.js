@@ -11,11 +11,10 @@ for (let route in routes) {
         newRoute = route;
     }
     // Not need to includes
-    if ((!['permissionRoutes', 'loginRoutes', 'userLoginRoutes'].includes(route))) {
+    if ((!['permissionRoutes', 'loginRoutes'].includes(route))) {
         Router.use(`/api/${newRoute}`, require(`./${route}`));
     }
     Router.use('/admin', require('./loginRoutes'));
-    Router.use('/user', require('./userLoginRoutes'));
     Router.use("/admin/permission", require('./permissionRoutes'));
 }
 

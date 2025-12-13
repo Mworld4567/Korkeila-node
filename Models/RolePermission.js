@@ -1,5 +1,6 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
+const Permission = require("./Permission");
 
 const RolePermission = sequelize.define(
     "role_permissions",
@@ -20,16 +21,6 @@ const RolePermission = sequelize.define(
             allowNull: false,
             primaryKey: true,
         },
-        created_at: {
-            type: "TIMESTAMP",
-            defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
-            allowNull: false,
-        },
-        updated_at: {
-            type: "TIMESTAMP",
-            defaultValue: Sequelize.literal("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"),
-            allowNull: false,
-        },
         deleted_at: {
             type: Sequelize.DATE,
             allowNull: true,
@@ -39,5 +30,10 @@ const RolePermission = sequelize.define(
         timestamps: false,
     }
 );
+
+RolePermission.belongsTo(Permission, {
+	foreignKey: "permission_id",
+	as: "userRolePermission",
+});
 
 module.exports = RolePermission;
