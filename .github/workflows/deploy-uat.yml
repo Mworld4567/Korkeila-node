@@ -7,14 +7,15 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: uat
     steps:
       - uses: actions/checkout@v4
 
       - uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.UAT_EC2_HOST }}
-          username: ${{ secrets.UAT_EC2_USER }}
-          key: ${{ secrets.UAT_EC2_SSH_KEY }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /var/www/html/api
 
