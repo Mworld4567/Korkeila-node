@@ -21,7 +21,7 @@ jobs:
 
             git fetch origin
             git checkout -B uat origin/uat
-            git clean -fdx
+            git clean -fd
 
             aws s3 cp s3://uat-system-files/env/backend/.env .env
 
