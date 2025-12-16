@@ -27,6 +27,6 @@ jobs:
 
             npx sequelize db:migrate
 
-            npm install
+            npm install --no-audit --no-fund
 
             pm2 restart api-server || pm2 start npm --name api-server -- start
