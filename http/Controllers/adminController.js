@@ -135,7 +135,9 @@ const adminController = () => {
                     return {
                         id: x.dataValues.id,
                         username: x.dataValues.username,
+                        email: x.dataValues.email,
                         role_name: x.dataValues.admin_role ? x.dataValues.admin_role.dataValues.role_name : null,
+                        status: x.dataValues.status,
                     };
                 });
 
