@@ -1,0 +1,29 @@
+name: Deploy UAT
+
+on:
+  push:
+    branches: [ "uat" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.UAT_EC2_HOST }}
+          username: ${{ secrets.UAT_EC2_USER }}
+          key: ${{ secrets.UAT_EC2_SSH_KEY }}
+          script: |
+            cd /var/www/html/api
+
+            git fetch --all
+            git checkout -B uat origin/uat
+            git reset --hard origin/uat
+
+            aws s3 cp s3://uat-system-files/env/backend/.env .env
+
+            npm install
+
+            pm2 restart api-server || pm2 start npm --name api-server -- start
