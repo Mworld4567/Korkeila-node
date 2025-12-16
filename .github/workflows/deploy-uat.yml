@@ -19,9 +19,8 @@ jobs:
           script: |
             cd /var/www/html/api
 
-            git fetch --all
+            git fetch origin
             git checkout -B uat origin/uat
-            git reset --hard origin/uat
 
             aws s3 cp s3://uat-system-files/env/backend/.env .env
 
