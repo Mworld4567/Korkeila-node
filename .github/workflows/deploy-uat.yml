@@ -19,6 +19,7 @@ jobs:
           script: |
             cd /var/www/html/api
 
+            git checkout .
             git fetch origin
             git checkout -B uat origin/uat
             git clean -fd
