@@ -24,6 +24,7 @@ const categoryMasterController = () => {
                 const existingCategory = await CategoryMaster.findOne({
                     where: {
                         category_code: req.body.category_code.trim(),
+                        parent_id: req.body.parent_id || 0,
                         deleted_at: null
                     }
                 });
@@ -38,6 +39,7 @@ const categoryMasterController = () => {
                 const data = {
                     category_name: req.body.category_name.trim(),
                     category_code: req.body.category_code.trim(),
+                    parent_id: req.body.parent_id || 0
                 };
 
                 const mydata = await CategoryMaster.create(data);
@@ -61,8 +63,46 @@ const categoryMasterController = () => {
             try {
                 const mydata = await CategoryMaster.findAll({
                     where: {
-                        deleted_at: null
+                        deleted_at: null,
                     },
+                    include: [
+                        {
+                            model: CategoryMaster,
+                            as: 'parent_category',
+                            attributes: ['id', 'category_name', 'category_code']
+                        }
+                    ],
+                    order: [['id', 'DESC']]
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Category master fetched successfully",
+                    data: mydata,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        readParentCategories: async (req, res) => {
+            try {
+                const mydata = await CategoryMaster.findAll({
+                    where: {
+                        deleted_at: null,
+                        parent_id: 0
+                    },
+                    include: [
+                        {
+                            model: CategoryMaster,
+                            as: 'parent_category',
+                            attributes: ['id', 'category_name', 'category_code']
+                        }
+                    ],
                     order: [['id', 'DESC']]
                 });
 
@@ -144,6 +184,7 @@ const categoryMasterController = () => {
                     where: {
                         category_code: req.body.category_code.trim(),
                         id: { [Op.ne]: parseInt(req.params.id) },
+                        parent_id: req.body.parent_id || 0,
                         deleted_at: null
                     }
                 });
@@ -158,6 +199,7 @@ const categoryMasterController = () => {
                 const data = {
                     category_name: req.body.category_name.trim(),
                     category_code: req.body.category_code.trim(),
+                    parent_id: req.body.parent_id || 0
                 };
 
                 await CategoryMaster.update(data, {
@@ -193,6 +235,21 @@ const categoryMasterController = () => {
                     return res.status(401).json({
                         success: false,
                         message: "Category master not found",
+                    });
+                }
+
+                // Check if category is a parent category (has child categories)
+                const childCategories = await CategoryMaster.findOne({
+                    where: {
+                        parent_id: req.params.id,
+                        deleted_at: null
+                    }
+                });
+
+                if (childCategories) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Cannot delete parent category. Please delete child categories first.",
                     });
                 }
 

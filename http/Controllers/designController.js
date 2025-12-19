@@ -8,6 +8,7 @@ const CutMaster = require("../../Models/CutMaster");
 const Karat = require("../../Models/Karat");
 const DiamondMaster = require("../../Models/DiamondMaster");
 const sequelize = require("../../config/dbconfig");
+const Metal = require("../../Models/Metal");
 
 const designController = () => {
     return {
@@ -326,7 +327,12 @@ const designController = () => {
                     }),
                     Karat.findAll({
                         where: { id: karatIds },
-                        attributes: ['id', 'metal_type', 'karat_value', 'karat']
+                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
+                        include: [{
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }]
                     }),
                     DesignsDiamondDetails.findAll({
                         where: { design_id: designIds },
@@ -413,7 +419,7 @@ const designController = () => {
                         karat: {
                             id: karat ? karat.id : null,
                             karat_id: designData.karat_id,
-                            metal_type: karat ? karat.metal_type : null,
+                            metal_type: karat && karat.metal ? karat.metal.metal_name : null,
                             karat_value: karat ? karat.karat_value : null,
                             karat: karat ? karat.karat : null
                         },
@@ -485,7 +491,12 @@ const designController = () => {
                         attributes: ['id', 'cut_name', 'cut_code']
                     }),
                     Karat.findByPk(designData.karat_id, {
-                        attributes: ['id', 'metal_type', 'karat_value', 'karat']
+                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
+                        include: [{
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }]
                     }),
                     DesignsDiamondDetails.findAll({
                         where: { design_id: designId },

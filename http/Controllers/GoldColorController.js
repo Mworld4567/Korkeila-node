@@ -1,57 +1,52 @@
 const logError = require("../../logger/log");
-const StyleMaster = require("../../Models/StyleMaster");
+const GoldColor = require("../../Models/GoldColor");
+const dateFunc = require("../../helpers/dateFunc");
 const { Op } = require("sequelize");
 
-const styleMasterController = () => {
+const goldColorController = () => {
     return {
         create: async (req, res) => {
             try {
-                if (!req.body.style_name || req.body.style_name === "") {
+                if (!req.body.color || req.body.color === "") {
                     return res.status(401).json({
                         success: false,
-                        message: "Please enter style name",
+                        message: "Please enter color",
                     });
                 }
 
-                if (!req.body.style_code || req.body.style_code === "") {
+                if (!req.body.colour_code || req.body.colour_code === "") {
                     return res.status(401).json({
                         success: false,
-                        message: "Please enter style code",
+                        message: "Please enter colour code",
                     });
                 }
 
-                if (!req.body.category_master_id || req.body.category_master_id === "") {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Please enter category master id",
-                    });
-                }
-
-                const existingStyle = await StyleMaster.findOne({
+                const existingGoldColor = await GoldColor.findOne({
                     where: {
-                        style_code: req.body.style_code.trim(),
-                        category_master_id: req.body.category_master_id
+                        metal_type_id: req.body.metal_type_id,
+                        colour_code: req.body.colour_code.trim(),
+                        deleted_at: null
                     }
                 });
 
-                if (existingStyle) {
+                if (existingGoldColor) {
                     return res.status(401).json({
                         success: false,
-                        message: "Style code already exists",
+                        message: "Colour code already exists",
                     });
                 }
 
                 const data = {
-                    style_name: req.body.style_name.trim(),
-                    style_code: req.body.style_code.trim(),
-                    category_master_id: req.body.category_master_id
+                    color: req.body.color.trim(),
+                    colour_code: req.body.colour_code.trim(),
+                    metal_type_id: req.body.metal_type_id,
                 };
 
-                const mydata = await StyleMaster.create(data);
+                const mydata = await GoldColor.create(data);
 
                 return res.status(200).json({
                     success: true,
-                    message: "Style master created successfully",
+                    message: "Gold color created successfully",
                     data: mydata,
                 });
 
@@ -66,13 +61,16 @@ const styleMasterController = () => {
         },
         read: async (req, res) => {
             try {
-                const mydata = await StyleMaster.findAll({
+                const mydata = await GoldColor.findAll({
+                    where: {
+                        deleted_at: null,
+                    },
                     order: [['id', 'DESC']]
                 });
 
                 return res.status(200).json({
                     success: true,
-                    message: "Style master fetched successfully",
+                    message: "Gold color fetched successfully",
                     data: mydata,
                 });
             } catch (error) {
@@ -86,18 +84,23 @@ const styleMasterController = () => {
         },
         readOne: async (req, res) => {
             try {
-                const mydata = await StyleMaster.findByPk(req.params.id);
+                const mydata = await GoldColor.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null
+                    }
+                });
 
                 if (!mydata) {
                     return res.status(401).json({
                         success: false,
-                        message: "Style master not found",
+                        message: "Gold color not found",
                     });
                 }
 
                 return res.status(200).json({
                     success: true,
-                    message: "Style master fetched successfully",
+                    message: "Gold color fetched successfully",
                     data: mydata,
                 });
             } catch (error) {
@@ -111,56 +114,63 @@ const styleMasterController = () => {
         },
         update: async (req, res) => {
             try {
-                const styleData = await StyleMaster.findByPk(req.params.id);
-                if (!styleData) {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Style master not found",
-                    });
-                }
-
-                if (!req.body.style_name || req.body.style_name === "") {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Please enter style name",
-                    });
-                }
-
-                if (!req.body.style_code || req.body.style_code === "") {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Please enter style code",
-                    });
-                }
-
-                const existingStyle = await StyleMaster.findOne({
+                const goldColorData = await GoldColor.findOne({
                     where: {
-                        style_code: req.body.style_code.trim(),
-                        id: { [Op.ne]: parseInt(req.params.id) }
+                        id: req.params.id,
+                        deleted_at: null
                     }
                 });
 
-                if (existingStyle) {
+                if (!goldColorData) {
                     return res.status(401).json({
                         success: false,
-                        message: "Style code already exists",
+                        message: "Gold color not found",
+                    });
+                }
+
+                if (!req.body.color || req.body.color === "") {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Please enter color",
+                    });
+                }
+
+                if (!req.body.colour_code || req.body.colour_code === "") {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Please enter colour code",
+                    });
+                }
+
+                const existingGoldColor = await GoldColor.findOne({
+                    where: {
+                        colour_code: req.body.colour_code.trim(),
+                        id: { [Op.ne]: parseInt(req.params.id) },
+                        deleted_at: null
+                    }
+                });
+
+                if (existingGoldColor) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Colour code already exists",
                     });
                 }
 
                 const data = {
-                    style_name: req.body.style_name.trim(),
-                    style_code: req.body.style_code.trim(),
+                    color: req.body.color.trim(),
+                    colour_code: req.body.colour_code.trim(),
                 };
 
-                await StyleMaster.update(data, {
+                await GoldColor.update(data, {
                     where: { id: req.params.id }
                 });
 
-                const updatedData = await StyleMaster.findByPk(req.params.id);
+                const updatedData = await GoldColor.findByPk(req.params.id);
 
                 return res.status(200).json({
                     success: true,
-                    message: "Style master updated successfully",
+                    message: "Gold color updated successfully",
                     data: updatedData,
                 });
             } catch (error) {
@@ -174,21 +184,30 @@ const styleMasterController = () => {
         },
         delete: async (req, res) => {
             try {
-                const styleData = await StyleMaster.findByPk(req.params.id);
-                if (!styleData) {
+                const goldColorData = await GoldColor.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null
+                    }
+                });
+
+                if (!goldColorData) {
                     return res.status(401).json({
                         success: false,
-                        message: "Style master not found",
+                        message: "Gold color not found",
                     });
                 }
 
-                await StyleMaster.destroy({
-                    where: { id: req.params.id }
-                });
+                const dateTime = dateFunc();
+
+                await GoldColor.update(
+                    { deleted_at: dateTime },
+                    { where: { id: req.params.id } }
+                );
 
                 return res.status(200).json({
                     success: true,
-                    message: "Style master deleted successfully",
+                    message: "Gold color deleted successfully",
                 });
             } catch (error) {
                 console.log(error);
@@ -202,5 +221,4 @@ const styleMasterController = () => {
     };
 };
 
-module.exports = styleMasterController;
-
+module.exports = goldColorController;
