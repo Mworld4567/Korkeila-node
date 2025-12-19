@@ -1,52 +1,52 @@
 const logError = require("../../logger/log");
-const CategoryMaster = require("../../Models/CategoryMaster");
+const GoldColor = require("../../Models/GoldColor");
 const dateFunc = require("../../helpers/dateFunc");
 const { Op } = require("sequelize");
 
-const categoryMasterController = () => {
+const goldColorController = () => {
     return {
         create: async (req, res) => {
             try {
-                if (!req.body.category_name || req.body.category_name === "") {
+                if (!req.body.color || req.body.color === "") {
                     return res.status(401).json({
                         success: false,
-                        message: "Please enter category name",
+                        message: "Please enter color",
                     });
                 }
 
-                if (!req.body.category_code || req.body.category_code === "") {
+                if (!req.body.colour_code || req.body.colour_code === "") {
                     return res.status(401).json({
                         success: false,
-                        message: "Please enter category code",
+                        message: "Please enter colour code",
                     });
                 }
 
-                const existingCategory = await CategoryMaster.findOne({
+                const existingGoldColor = await GoldColor.findOne({
                     where: {
-                        category_code: req.body.category_code.trim(),
-                        parent_id: req.body.parent_id || 0,
+                        metal_type_id: req.body.metal_type_id,
+                        colour_code: req.body.colour_code.trim(),
                         deleted_at: null
                     }
                 });
 
-                if (existingCategory) {
+                if (existingGoldColor) {
                     return res.status(401).json({
                         success: false,
-                        message: "Category code already exists",
+                        message: "Colour code already exists",
                     });
                 }
 
                 const data = {
-                    category_name: req.body.category_name.trim(),
-                    category_code: req.body.category_code.trim(),
-                    parent_id: req.body.parent_id || 0
+                    color: req.body.color.trim(),
+                    colour_code: req.body.colour_code.trim(),
+                    metal_type_id: req.body.metal_type_id,
                 };
 
-                const mydata = await CategoryMaster.create(data);
+                const mydata = await GoldColor.create(data);
 
                 return res.status(200).json({
                     success: true,
-                    message: "Category master created successfully",
+                    message: "Gold color created successfully",
                     data: mydata,
                 });
 
@@ -61,54 +61,16 @@ const categoryMasterController = () => {
         },
         read: async (req, res) => {
             try {
-                const mydata = await CategoryMaster.findAll({
+                const mydata = await GoldColor.findAll({
                     where: {
                         deleted_at: null,
                     },
-                    include: [
-                        {
-                            model: CategoryMaster,
-                            as: 'parent_category',
-                            attributes: ['id', 'category_name', 'category_code']
-                        }
-                    ],
                     order: [['id', 'DESC']]
                 });
 
                 return res.status(200).json({
                     success: true,
-                    message: "Category master fetched successfully",
-                    data: mydata,
-                });
-            } catch (error) {
-                console.log(error);
-                logError(error, req);
-                return res.status(500).json({
-                    success: false,
-                    message: "Internal server error",
-                });
-            }
-        },
-        readParentCategories: async (req, res) => {
-            try {
-                const mydata = await CategoryMaster.findAll({
-                    where: {
-                        deleted_at: null,
-                        parent_id: 0
-                    },
-                    include: [
-                        {
-                            model: CategoryMaster,
-                            as: 'parent_category',
-                            attributes: ['id', 'category_name', 'category_code']
-                        }
-                    ],
-                    order: [['id', 'DESC']]
-                });
-
-                return res.status(200).json({
-                    success: true,
-                    message: "Category master fetched successfully",
+                    message: "Gold color fetched successfully",
                     data: mydata,
                 });
             } catch (error) {
@@ -122,7 +84,7 @@ const categoryMasterController = () => {
         },
         readOne: async (req, res) => {
             try {
-                const mydata = await CategoryMaster.findOne({
+                const mydata = await GoldColor.findOne({
                     where: {
                         id: req.params.id,
                         deleted_at: null
@@ -132,13 +94,13 @@ const categoryMasterController = () => {
                 if (!mydata) {
                     return res.status(204).json({
                         success: true,
-                        message: "Category master not found",
+                        message: "Gold color not found",
                     });
                 }
 
                 return res.status(200).json({
                     success: true,
-                    message: "Category master fetched successfully",
+                    message: "Gold color fetched successfully",
                     data: mydata,
                 });
             } catch (error) {
@@ -152,65 +114,63 @@ const categoryMasterController = () => {
         },
         update: async (req, res) => {
             try {
-                const categoryData = await CategoryMaster.findOne({
+                const goldColorData = await GoldColor.findOne({
                     where: {
                         id: req.params.id,
                         deleted_at: null
                     }
                 });
 
-                if (!categoryData) {
+                if (!goldColorData) {
                     return res.status(204).json({
                         success: true,
-                        message: "Category master not found",
+                        message: "Gold color not found",
                     });
                 }
 
-                if (!req.body.category_name || req.body.category_name === "") {
+                if (!req.body.color || req.body.color === "") {
                     return res.status(204).json({
                         success: true,
-                        message: "Please enter category name",
+                        message: "Please enter color",
                     });
                 }
 
-                if (!req.body.category_code || req.body.category_code === "") {
+                if (!req.body.colour_code || req.body.colour_code === "") {
                     return res.status(204).json({
                         success: true,
-                        message: "Please enter category code",
+                        message: "Please enter colour code",
                     });
                 }
 
-                const existingCategory = await CategoryMaster.findOne({
+                const existingGoldColor = await GoldColor.findOne({
                     where: {
-                        category_code: req.body.category_code.trim(),
+                        colour_code: req.body.colour_code.trim(),
                         id: { [Op.ne]: parseInt(req.params.id) },
-                        parent_id: req.body.parent_id || 0,
                         deleted_at: null
                     }
                 });
 
-                if (existingCategory) {
+                if (existingGoldColor) {
                     return res.status(204).json({
                         success: true,
-                        message: "Category code already exists",
+                        message: "Colour code already exists",
                     });
                 }
 
                 const data = {
-                    category_name: req.body.category_name.trim(),
-                    category_code: req.body.category_code.trim(),
-                    parent_id: req.body.parent_id || 0
+                    color: req.body.color.trim(),
+                    colour_code: req.body.colour_code.trim(),
                 };
 
-                await CategoryMaster.update(data, {
+                await GoldColor.update(data, {
                     where: { id: req.params.id }
                 });
 
-                const updatedData = await CategoryMaster.findByPk(req.params.id);
+                const updatedData = await GoldColor.findByPk(req.params.id);
 
                 return res.status(200).json({
                     success: true,
-                    message: "Category master updated successfully",
+                    message: "Gold color updated successfully",
                     data: updatedData,
                 });
             } catch (error) {
@@ -224,45 +184,30 @@ const categoryMasterController = () => {
         },
         delete: async (req, res) => {
             try {
-                const categoryData = await CategoryMaster.findOne({
+                const goldColorData = await GoldColor.findOne({
                     where: {
                         id: req.params.id,
                         deleted_at: null
                     }
                 });
 
-                if (!categoryData) {
+                if (!goldColorData) {
                     return res.status(204).json({
                         success: true,
-                        message: "Category master not found",
-                    });
-                }
-
-                // Check if category is a parent category (has child categories)
-                const childCategories = await CategoryMaster.findOne({
-                    where: {
-                        parent_id: req.params.id,
-                        deleted_at: null
-                    }
-                });
-
-                if (childCategories) {
-                    return res.status(204).json({
-                        success: true,
-                        message: "Cannot delete parent category. Please delete child categories first.",
+                        message: "Gold color not found",
                     });
                 }
 
                 const dateTime = dateFunc();
 
-                await CategoryMaster.update(
+                await GoldColor.update(
                     { deleted_at: dateTime },
                     { where: { id: req.params.id } }
                 );
 
                 return res.status(200).json({
                     success: true,
-                    message: "Category master deleted successfully",
+                    message: "Gold color deleted successfully",
                 });
             } catch (error) {
                 console.log(error);
@@ -276,5 +221,4 @@ const categoryMasterController = () => {
     };
 };
 
-module.exports = categoryMasterController;
-
+module.exports = goldColorController;

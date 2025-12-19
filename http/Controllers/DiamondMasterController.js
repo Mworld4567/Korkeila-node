@@ -83,8 +83,8 @@ const diamondMasterController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Diamond master not found",
                     });
                 }
@@ -113,15 +113,15 @@ const diamondMasterController = () => {
                 });
 
                 if (!diamondData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Diamond master not found",
                     });
                 }
 
                 if (req.body.carat === undefined || req.body.carat === null) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter carat",
                     });
                 }
@@ -176,8 +176,8 @@ const diamondMasterController = () => {
                 });
 
                 if (!diamondData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Diamond master not found",
                     });
                 }

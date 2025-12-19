@@ -20,9 +20,17 @@ const styleMasterController = () => {
                     });
                 }
 
+                if (!req.body.category_master_id || req.body.category_master_id === "") {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Please enter category master id",
+                    });
+                }
+
                 const existingStyle = await StyleMaster.findOne({
                     where: {
-                        style_code: req.body.style_code.trim()
+                        style_code: req.body.style_code.trim(),
+                        category_master_id: req.body.category_master_id
                     }
                 });
 
@@ -36,6 +44,7 @@ const styleMasterController = () => {
                 const data = {
                     style_name: req.body.style_name.trim(),
                     style_code: req.body.style_code.trim(),
+                    category_master_id: req.body.category_master_id
                 };
 
                 const mydata = await StyleMaster.create(data);
@@ -80,8 +89,8 @@ const styleMasterController = () => {
                 const mydata = await StyleMaster.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }
@@ -104,22 +113,22 @@ const styleMasterController = () => {
             try {
                 const styleData = await StyleMaster.findByPk(req.params.id);
                 if (!styleData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }
 
                 if (!req.body.style_name || req.body.style_name === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter style name",
                     });
                 }
 
                 if (!req.body.style_code || req.body.style_code === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter style code",
                     });
                 }
@@ -167,8 +176,8 @@ const styleMasterController = () => {
             try {
                 const styleData = await StyleMaster.findByPk(req.params.id);
                 if (!styleData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }

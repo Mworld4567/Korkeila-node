@@ -7,6 +7,7 @@ const StyleMaster = sequelize.define(
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
         style_name: { type: Sequelize.STRING(255), allowNull: false },
         style_code: { type: Sequelize.STRING(255), allowNull: false },
+        category_master_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
     },
     {
         timestamps: false,

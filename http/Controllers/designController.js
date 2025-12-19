@@ -8,6 +8,7 @@ const CutMaster = require("../../Models/CutMaster");
 const Karat = require("../../Models/Karat");
 const DiamondMaster = require("../../Models/DiamondMaster");
 const sequelize = require("../../config/dbconfig");
+const Metal = require("../../Models/Metal");
 
 const designController = () => {
     return {
@@ -56,8 +57,8 @@ const designController = () => {
                 // Verify category exists
                 const category = await CategoryMaster.findByPk(category_id);
                 if (!category) {
-                    return res.status(404).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Category not found"
                     });
                 }
@@ -65,8 +66,8 @@ const designController = () => {
                 // Verify style exists
                 const style = await StyleMaster.findByPk(style_id);
                 if (!style) {
-                    return res.status(404).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style not found"
                     });
                 }
@@ -100,8 +101,8 @@ const designController = () => {
                 // Validate all cuts exist
                 for (const cutId of cutIds) {
                     if (!cutMap.has(cutId)) {
-                        return res.status(404).json({
-                            success: false,
+                        return res.status(204).json({
+                            success: true,
                             message: `Cut with ID ${cutId} not found`
                         });
                     }
@@ -110,8 +111,8 @@ const designController = () => {
                 // Validate all karats exist
                 for (const karatId of karatIds) {
                     if (!karatMap.has(karatId)) {
-                        return res.status(404).json({
-                            success: false,
+                        return res.status(204).json({
+                            success: true,
                             message: `Karat with ID ${karatId} not found`
                         });
                     }
@@ -296,7 +297,7 @@ const designController = () => {
                 });
 
                 if (!designs || designs.length === 0) {
-                    return res.status(200).json({
+                    return res.status(204).json({
                         success: true,
                         message: "No designs found",
                         data: []
@@ -326,7 +327,12 @@ const designController = () => {
                     }),
                     Karat.findAll({
                         where: { id: karatIds },
-                        attributes: ['id', 'metal_type', 'karat_value', 'karat']
+                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
+                        include: [{
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }]
                     }),
                     DesignsDiamondDetails.findAll({
                         where: { design_id: designIds },
@@ -413,7 +419,7 @@ const designController = () => {
                         karat: {
                             id: karat ? karat.id : null,
                             karat_id: designData.karat_id,
-                            metal_type: karat ? karat.metal_type : null,
+                            metal_type: karat && karat.metal ? karat.metal.metal_name : null,
                             karat_value: karat ? karat.karat_value : null,
                             karat: karat ? karat.karat : null
                         },
@@ -465,8 +471,8 @@ const designController = () => {
                 });
 
                 if (!design) {
-                    return res.status(404).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Design not found"
                     });
                 }
@@ -485,7 +491,12 @@ const designController = () => {
                         attributes: ['id', 'cut_name', 'cut_code']
                     }),
                     Karat.findByPk(designData.karat_id, {
-                        attributes: ['id', 'metal_type', 'karat_value', 'karat']
+                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
+                        include: [{
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }]
                     }),
                     DesignsDiamondDetails.findAll({
                         where: { design_id: designId },

@@ -6,15 +6,15 @@ const metalRateMasterController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.karat_id || req.body.karat_id === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter karat id",
                     });
                 }
                 const karat = await Karat.findByPk(req.body.karat_id);
                 if (!karat) {
                     return res.status(401).json({
-                        success: false,
+                        success: true,
                         message: "Karat not found",
                     });
                 }
@@ -71,7 +71,12 @@ const metalRateMasterController = () => {
                     include: [{
                         model: Karat,
                         as: 'karat',
-                        attributes: ['id', 'metal_type', 'karat_value', 'karat']
+                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
+                        include: [{
+                            model: require("../../Models/Metal"),
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }]
                     }],
                 });
 
@@ -79,7 +84,7 @@ const metalRateMasterController = () => {
                     return {
                         id: x.dataValues.id,
                         karat_id: x.dataValues.karat.dataValues.id,
-                        metal_type: x.dataValues.karat.dataValues.metal_type,
+                        metal_type: x.dataValues.karat.dataValues.metal && x.dataValues.karat.dataValues.metal.dataValues ? x.dataValues.karat.dataValues.metal.dataValues.metal_name : null,
                         karat_value: x.dataValues.karat.dataValues.karat_value,
                         karat: x.dataValues.karat.dataValues.karat,
                         rate: x.dataValues.rate,
@@ -105,12 +110,17 @@ const metalRateMasterController = () => {
             try {
 
                 const mydata = await Karat.findAll({
+                    include: [{
+                        model: require("../../Models/Metal"),
+                        as: 'metal',
+                        attributes: ['id', 'metal_name']
+                    }]
                 });
 
                 const data = mydata.map((x) => {
                     return {
                         id: x.dataValues.id,
-                        metal_type: x.dataValues.metal_type,
+                        metal_type: x.dataValues.metal && x.dataValues.metal.dataValues ? x.dataValues.metal.dataValues.metal_name : null,
                         karat_value: x.dataValues.karat_value,
                         karat: x.dataValues.karat,
                     };

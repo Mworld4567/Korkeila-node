@@ -125,8 +125,8 @@ const adminController = () => {
                     ],
                 });
                 if (!mydata.length) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No user found",
                     });
                 }
@@ -174,8 +174,8 @@ const adminController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(401).json({ 
-                        success: false,
+                    return res.status(204).json({ 
+                        success: true,
                         message: "No user details found",
                     });
                 }
@@ -209,8 +209,8 @@ const adminController = () => {
 
                 const userData = await Admin.findByPk(req.params.id, { transaction });
                 if (!userData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No user details found",
                     });
                 }
@@ -284,8 +284,8 @@ const adminController = () => {
                     transaction,
                 });
                 if (!parametercheck) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No user found",
                     });
                 }
