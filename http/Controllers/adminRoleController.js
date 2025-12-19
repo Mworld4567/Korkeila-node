@@ -104,8 +104,8 @@ const adminRoleController = () => {
                 });
 
                 if (!mydata.length) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No role found",
                     });
                 }
@@ -205,15 +205,15 @@ const adminRoleController = () => {
 
                 const roleData = await AdminRole.findByPk(req.params.id, { transaction });
                 if (!roleData || roleData.deleted_at !== null) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No role details found",
                     });
                 }
 
                 if (!req.body.role_name || req.body.role_name === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter role name",
                     });
                 }
@@ -221,8 +221,8 @@ const adminRoleController = () => {
                 const roleName = req.body.role_name.trim();
                 const roleNameRegex = /^[A-Za-z0-9 _]*[A-Za-z]+[A-Za-z0-9 _]*$/;
                 if (!roleNameRegex.test(roleName)) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter a valid role name",
                     });
                 }
@@ -305,8 +305,8 @@ const adminRoleController = () => {
                     transaction,
                 });
                 if (!parametercheck) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "No role found",
                     });
                 }

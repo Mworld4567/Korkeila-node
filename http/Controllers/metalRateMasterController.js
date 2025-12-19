@@ -6,15 +6,15 @@ const metalRateMasterController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.karat_id || req.body.karat_id === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter karat id",
                     });
                 }
                 const karat = await Karat.findByPk(req.body.karat_id);
                 if (!karat) {
                     return res.status(401).json({
-                        success: false,
+                        success: true,
                         message: "Karat not found",
                     });
                 }

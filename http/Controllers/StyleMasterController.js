@@ -89,8 +89,8 @@ const styleMasterController = () => {
                 const mydata = await StyleMaster.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }
@@ -113,22 +113,22 @@ const styleMasterController = () => {
             try {
                 const styleData = await StyleMaster.findByPk(req.params.id);
                 if (!styleData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }
 
                 if (!req.body.style_name || req.body.style_name === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter style name",
                     });
                 }
 
                 if (!req.body.style_code || req.body.style_code === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter style code",
                     });
                 }
@@ -176,8 +176,8 @@ const styleMasterController = () => {
             try {
                 const styleData = await StyleMaster.findByPk(req.params.id);
                 if (!styleData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Style master not found",
                     });
                 }

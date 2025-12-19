@@ -80,8 +80,8 @@ const cutMasterController = () => {
                 const mydata = await CutMaster.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Cut master not found",
                     });
                 }
@@ -104,22 +104,22 @@ const cutMasterController = () => {
             try {
                 const cutData = await CutMaster.findByPk(req.params.id);
                 if (!cutData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Cut master not found",
                     });
                 }
 
                 if (!req.body.cut_name || req.body.cut_name === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter cut name",
                     });
                 }
 
                 if (!req.body.cut_code || req.body.cut_code === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter cut code",
                     });
                 }
@@ -167,8 +167,8 @@ const cutMasterController = () => {
             try {
                 const cutData = await CutMaster.findByPk(req.params.id);
                 if (!cutData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Cut master not found",
                     });
                 }

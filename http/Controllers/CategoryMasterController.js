@@ -130,8 +130,8 @@ const categoryMasterController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Category master not found",
                     });
                 }
@@ -160,22 +160,22 @@ const categoryMasterController = () => {
                 });
 
                 if (!categoryData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Category master not found",
                     });
                 }
 
                 if (!req.body.category_name || req.body.category_name === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter category name",
                     });
                 }
 
                 if (!req.body.category_code || req.body.category_code === "") {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Please enter category code",
                     });
                 }
@@ -190,8 +190,8 @@ const categoryMasterController = () => {
                 });
 
                 if (existingCategory) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Category code already exists",
                     });
                 }
@@ -232,8 +232,8 @@ const categoryMasterController = () => {
                 });
 
                 if (!categoryData) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Category master not found",
                     });
                 }
@@ -247,8 +247,8 @@ const categoryMasterController = () => {
                 });
 
                 if (childCategories) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(204).json({
+                        success: true,
                         message: "Cannot delete parent category. Please delete child categories first.",
                     });
                 }
