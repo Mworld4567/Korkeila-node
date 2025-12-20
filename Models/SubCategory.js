@@ -1,18 +1,17 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
 
-const StyleMaster = sequelize.define(
-    "style_masters",
+const SubCategory = sequelize.define(
+    "sub_categories",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        style_name: { type: Sequelize.STRING(255), allowNull: false },
-        style_code: { type: Sequelize.STRING(255), allowNull: false },
+        sub_category_name: { type: Sequelize.STRING(255), allowNull: false },
+        sub_category_code: { type: Sequelize.STRING(255), allowNull: false },
         category_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
-        sub_category_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
     },
     {
         timestamps: false,
     }
 );
 
-module.exports = StyleMaster;
+module.exports = SubCategory;

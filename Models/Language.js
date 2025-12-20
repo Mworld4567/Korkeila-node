@@ -1,16 +1,16 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
 
-const Karat = sequelize.define(
-    "karats",
+const Language = sequelize.define(
+    "languages",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        metal_type_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
-        karat: { type: Sequelize.STRING(255), allowNull: true },
+        language_name: { type: Sequelize.STRING(255), allowNull: false },
+        language_code: { type: Sequelize.STRING(255), allowNull: false },
     },
     {
         timestamps: false,
     }
 );
 
-module.exports = Karat;
+module.exports = Language;

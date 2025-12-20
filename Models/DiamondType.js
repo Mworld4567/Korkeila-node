@@ -1,16 +1,16 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
 
-const Karat = sequelize.define(
-    "karats",
+const DiamondType = sequelize.define(
+    "diamond_types",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        metal_type_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
-        karat: { type: Sequelize.STRING(255), allowNull: true },
+        type_name: { type: Sequelize.STRING(255), allowNull: false },
+        type_code: { type: Sequelize.STRING(255), allowNull: false },
     },
     {
         timestamps: false,
     }
 );
 
-module.exports = Karat;
+module.exports = DiamondType;
