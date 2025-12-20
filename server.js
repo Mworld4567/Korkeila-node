@@ -1,3 +1,7 @@
+// Suppress Node.js deprecation warnings
+process.removeAllListeners('warning');
+process.on('warning', () => {});
+
 require("dotenv").config();
 const express = require("express");
 const app = express();

@@ -1,12 +1,12 @@
 const express = require("express");
 const Router = express.Router();
 const testS3Controller = require('../http/Controllers/TestS3Controller');
-// const { serverStorageimage } = require("../http/middlewares/awsS3Middleware");
+const { uploadInS3Image } = require("../http/middlewares/awsS3Middleware");
 
 // Test endpoint for S3 image upload (AWS SDK v3 compatible)
 // POST /api/testS3/upload-image
-// Use multipart/form-data with field name "image"
-// Router.post("/upload-image", serverStorageimage.single("image"), testS3Controller().testImageUpload);
+// Use multipart/form-data with field name "file"
+Router.post("/upload-image", uploadInS3Image.single("file"), testS3Controller().testImageUpload);
 
 // Test endpoint to check S3 connection status
 // GET /api/testS3/connection
@@ -21,6 +21,11 @@ Router.post("/check-file", testS3Controller().testCheckFileExists);
 // POST /api/testS3/delete-file
 // Body: { "filePath": "path/to/file.jpg" }
 Router.post("/delete-file", testS3Controller().testDeleteFile);
+
+// Test endpoint to get presigned URL for a file
+// POST /api/testS3/presigned-url
+// Body: { "fileKey": "testS3/image/filename.jpg", "expiresIn": 3600 }
+Router.post("/presigned-url", testS3Controller().testGetPresignedUrl);
 
 module.exports = Router;
 
