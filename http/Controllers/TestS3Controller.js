@@ -126,40 +126,40 @@ const testS3Controller = () => {
         },
 
         // Test endpoint to get presigned URL for a file
-        testGetPresignedUrl: async (req, res) => {
-            try {
-                const { fileKey, expiresIn } = req.body;
+        // testGetPresignedUrl: async (req, res) => {
+        //     try {
+        //         const { fileKey, expiresIn } = req.body;
 
-                if (!fileKey) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Please provide fileKey in request body",
-                    });
-                }
+        //         if (!fileKey) {
+        //             return res.status(400).json({
+        //                 success: false,
+        //                 message: "Please provide fileKey in request body",
+        //             });
+        //         }
 
-                const expirationTime = expiresIn || 3600; // Default 1 hour
-                const presignedUrl = await getPresignedUrl(fileKey, expirationTime);
+        //         const expirationTime = expiresIn || 3600; // Default 1 hour
+        //         const presignedUrl = await getPresignedUrl(fileKey, expirationTime);
 
-                return res.status(200).json({
-                    success: true,
-                    message: "Presigned URL generated successfully",
-                    data: {
-                        fileKey: fileKey,
-                        presignedUrl: presignedUrl,
-                        expiresIn: expirationTime,
-                        expiresAt: new Date(Date.now() + expirationTime * 1000).toISOString(),
-                    },
-                });
-            } catch (error) {
-                console.log("Get Presigned URL Error:", error);
-                logError(error, req);
-                return res.status(500).json({
-                    success: false,
-                    message: "Failed to generate presigned URL",
-                    error: error.message,
-                });
-            }
-        },
+        //         return res.status(200).json({
+        //             success: true,
+        //             message: "Presigned URL generated successfully",
+        //             data: {
+        //                 fileKey: fileKey,
+        //                 presignedUrl: presignedUrl,
+        //                 expiresIn: expirationTime,
+        //                 expiresAt: new Date(Date.now() + expirationTime * 1000).toISOString(),
+        //             },
+        //         });
+        //     } catch (error) {
+        //         console.log("Get Presigned URL Error:", error);
+        //         logError(error, req);
+        //         return res.status(500).json({
+        //             success: false,
+        //             message: "Failed to generate presigned URL",
+        //             error: error.message,
+        //         });
+        //     }
+        // },
 
         // Test endpoint to get S3 connection status
         testS3Connection: async (req, res) => {
