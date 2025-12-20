@@ -1,6 +1,7 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
 const Karat = require("./Karat");
+const Metal = require("./Metal");
 
 const MetalRateMaster = sequelize.define(
     "metal_rate_masters",
@@ -17,5 +18,6 @@ const MetalRateMaster = sequelize.define(
 );
 
 MetalRateMaster.belongsTo(Karat, { foreignKey: 'karat_id', as: 'karat' });
+MetalRateMaster.belongsTo(Metal, { foreignKey: 'metal_id', as: 'metal' });
 
 module.exports = MetalRateMaster;

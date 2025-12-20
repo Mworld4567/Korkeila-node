@@ -1,6 +1,7 @@
 const logError = require("../../logger/log");
 const MetalRateMaster = require("../../Models/MetalRateMaster");
 const Karat = require("../../Models/Karat");
+const Metal = require("../../Models/Metal");
 const metalRateMasterController = () => {
     return {
         create: async (req, res) => {
@@ -11,6 +12,14 @@ const metalRateMasterController = () => {
                         message: "Please enter karat id",
                     });
                 }
+
+                if (!req.body.metal_id || req.body.metal_id === "") {
+                    return res.status(204).json({
+                        success: true,
+                        message: "Please enter metal id",
+                    });
+                }
+
                 const karat = await Karat.findByPk(req.body.karat_id);
                 if (!karat) {
                     return res.status(401).json({
@@ -19,12 +28,21 @@ const metalRateMasterController = () => {
                     });
                 }
 
+                const metal = await Metal.findByPk(req.body.metal_id);
+                if (!metal) {
+                    return res.status(401).json({
+                        success: true,
+                        message: "Metal not found",
+                    });
+                }
+
                 const date = req.body.date ? new Date(req.body.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
-                // Check if record exists with same karat_id and date
+                // Check if record exists with same karat_id, metal_id and date
                 const existingRecord = await MetalRateMaster.findOne({
                     where: {
                         karat_id: req.body.karat_id,
+                        metal_id: req.body.metal_id,
                         date: date
                     }
                 });
@@ -42,6 +60,7 @@ const metalRateMasterController = () => {
                     // Create new record
                     const data = {
                         karat_id: req.body.karat_id,
+                        metal_id: req.body.metal_id,
                         rate: parseFloat(req.body.rate || 0),
                         date: date,
                     };
@@ -68,25 +87,28 @@ const metalRateMasterController = () => {
             try {
 
                 const mydata = await MetalRateMaster.findAll({
-                    include: [{
-                        model: Karat,
-                        as: 'karat',
-                        attributes: ['id', 'metal_type_id', 'karat_value', 'karat'],
-                        include: [{
-                            model: require("../../Models/Metal"),
+                    include: [
+                        {
+                            model: Karat,
+                            as: 'karat',
+                            attributes: ['id', 'karat'],
+                        },
+                        {
+                            model: Metal,
                             as: 'metal',
                             attributes: ['id', 'metal_name']
-                        }]
-                    }],
+                        }
+                    ],
+                    order: [['id', 'DESC']]
                 });
 
                 const data = mydata.map((x) => {
                     return {
                         id: x.dataValues.id,
-                        karat_id: x.dataValues.karat.dataValues.id,
-                        metal_type: x.dataValues.karat.dataValues.metal && x.dataValues.karat.dataValues.metal.dataValues ? x.dataValues.karat.dataValues.metal.dataValues.metal_name : null,
-                        karat_value: x.dataValues.karat.dataValues.karat_value,
-                        karat: x.dataValues.karat.dataValues.karat,
+                        karat_id: x.dataValues.karat ? x.dataValues.karat.dataValues.id : null,
+                        metal_id: x.dataValues.metal ? x.dataValues.metal.dataValues.id : null,
+                        metal_name: x.dataValues.metal ? x.dataValues.metal.dataValues.metal_name : null,
+                        karat: x.dataValues.karat ? x.dataValues.karat.dataValues.karat : null,
                         rate: x.dataValues.rate,
                         date: x.dataValues.date,
                     };

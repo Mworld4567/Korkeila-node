@@ -1,6 +1,7 @@
 const logError = require("../../logger/log");
 const CutMaster = require("../../Models/CutMaster");
 const { Op } = require("sequelize");
+const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 
 const cutMasterController = () => {
     return {
@@ -33,9 +34,21 @@ const cutMasterController = () => {
                     });
                 }
 
+                let cut_image = null;
+                if (req.file && req.file.key) {
+                    const cloudfrontUrl = process.env.AWS_URL;
+                    let urlPath = req.file.key;
+                    if (urlPath.startsWith('public/')) {
+                        urlPath = urlPath.substring(7);
+                    }
+                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                    cut_image = `${baseUrl}${urlPath}`;
+                }
+
                 const data = {
                     cut_name: req.body.cut_name.trim(),
                     cut_code: req.body.cut_code.trim(),
+                    cut_image: cut_image,
                 };
 
                 const mydata = await CutMaster.create(data);
@@ -138,9 +151,39 @@ const cutMasterController = () => {
                     });
                 }
 
+                let cut_image = cutData.cut_image;
+                
+                // Handle new image upload
+                if (req.file && req.file.key) {
+                    // Delete old image from S3 if exists
+                    if (cutData.cut_image) {
+                        try {
+                            const oldKey = cutData.cut_image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
+                            if (oldKey && !oldKey.startsWith('public/')) {
+                                await deleteFromBucket(`public/cutMaster/image/${oldKey.split('/').pop()}`);
+                            } else if (oldKey) {
+                                await deleteFromBucket(oldKey);
+                            }
+                        } catch (deleteError) {
+                            console.log("Error deleting old image:", deleteError);
+                            // Continue even if deletion fails
+                        }
+                    }
+                    
+                    // Construct new image URL
+                    const cloudfrontUrl = process.env.AWS_URL;
+                    let urlPath = req.file.key;
+                    if (urlPath.startsWith('public/')) {
+                        urlPath = urlPath.substring(7);
+                    }
+                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                    cut_image = `${baseUrl}${urlPath}`;
+                }
+
                 const data = {
                     cut_name: req.body.cut_name.trim(),
                     cut_code: req.body.cut_code.trim(),
+                    cut_image: cut_image,
                 };
 
                 await CutMaster.update(data, {
@@ -171,6 +214,21 @@ const cutMasterController = () => {
                         success: true,
                         message: "Cut master not found",
                     });
+                }
+
+                // Delete image from S3 if exists
+                if (cutData.cut_image) {
+                    try {
+                        const oldKey = cutData.cut_image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
+                        if (oldKey && !oldKey.startsWith('public/')) {
+                            await deleteFromBucket(`public/cutMaster/image/${oldKey.split('/').pop()}`);
+                        } else if (oldKey) {
+                            await deleteFromBucket(oldKey);
+                        }
+                    } catch (deleteError) {
+                        console.log("Error deleting image from S3:", deleteError);
+                        // Continue even if deletion fails
+                    }
                 }
 
                 await CutMaster.destroy({
