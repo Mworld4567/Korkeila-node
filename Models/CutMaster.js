@@ -7,6 +7,7 @@ const CutMaster = sequelize.define(
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
         cut_name: { type: Sequelize.STRING(255), allowNull: false },
         cut_code: { type: Sequelize.STRING(255), allowNull: false },
+        cut_image: { type: Sequelize.STRING(255), allowNull: true },
     },
     {
         timestamps: false,

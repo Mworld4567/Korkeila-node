@@ -6,7 +6,8 @@ const MetalRateMaster = sequelize.define(
     "metal_rate_masters",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        karat_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, references: { model: 'karats', key: 'id' } },
+        karat_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+        metal_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
         rate: { type: Sequelize.DECIMAL(10, 2), allowNull: true, defaultValue: 0 },
         date: { type: Sequelize.DATEONLY, allowNull: false },
     },

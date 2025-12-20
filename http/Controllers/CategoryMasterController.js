@@ -1,5 +1,5 @@
 const logError = require("../../logger/log");
-const CategoryMaster = require("../../Models/CategoryMaster");
+const CategoryMaster = require("../../Models/Category");
 const dateFunc = require("../../helpers/dateFunc");
 const { Op } = require("sequelize");
 

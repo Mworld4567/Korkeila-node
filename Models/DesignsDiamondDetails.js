@@ -5,9 +5,9 @@ const DesignsDiamondDetails = sequelize.define(
     "designs_diamond_details",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        design_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, references: { model: 'designs', key: 'id' } },
-        cut_master_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, references: { model: 'cut_masters', key: 'id' } },
-        diamond_master_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, references: { model: 'diamond_masters', key: 'id' } },
+        design_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, },
+        cut_master_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, },
+        diamond_rate_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, },
         pcs: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
     },
     {
