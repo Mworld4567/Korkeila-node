@@ -5,7 +5,6 @@ const Karat = sequelize.define(
     "karats",
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
-        metal_type_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
         karat: { type: Sequelize.STRING(255), allowNull: true },
     },
     {
