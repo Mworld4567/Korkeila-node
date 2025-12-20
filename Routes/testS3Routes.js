@@ -25,7 +25,7 @@ Router.post("/delete-file", testS3Controller().testDeleteFile);
 // Test endpoint to get presigned URL for a file
 // POST /api/testS3/presigned-url
 // Body: { "fileKey": "testS3/image/filename.jpg", "expiresIn": 3600 }
-Router.post("/presigned-url", testS3Controller().testGetPresignedUrl);
+// Router.post("/presigned-url", testS3Controller().testGetPresignedUrl);
 
 module.exports = Router;
 
