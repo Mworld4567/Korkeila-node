@@ -1,5 +1,7 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
+const Category = require("./Category");
+const SubCategory = require("./SubCategory");
 
 const StyleMaster = sequelize.define(
     "style_masters",
@@ -14,5 +16,8 @@ const StyleMaster = sequelize.define(
         timestamps: false,
     }
 );
+
+StyleMaster.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+StyleMaster.belongsTo(SubCategory, { foreignKey: 'sub_category_id', as: 'sub_category' });
 
 module.exports = StyleMaster;
