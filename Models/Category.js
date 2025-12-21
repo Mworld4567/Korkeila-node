@@ -8,6 +8,7 @@ const Category = sequelize.define(
         category_name: { type: Sequelize.STRING(255), allowNull: false },
         category_code: { type: Sequelize.STRING(255), allowNull: false },
         image: { type: Sequelize.STRING(255), allowNull: true },
+        deleted_at: { type: Sequelize.DATE, allowNull: true },
     },
     {
         timestamps: false,
