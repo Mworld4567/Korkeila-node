@@ -2,6 +2,7 @@ const logError = require("../../logger/log");
 const CategoryMaster = require("../../Models/Category");
 const dateFunc = require("../../helpers/dateFunc");
 const { Op } = require("sequelize");
+const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 
 const categoryMasterController = () => {
     return {
@@ -24,7 +25,6 @@ const categoryMasterController = () => {
                 const existingCategory = await CategoryMaster.findOne({
                     where: {
                         category_code: req.body.category_code.trim(),
-                        parent_id: req.body.parent_id || 0,
                         deleted_at: null
                     }
                 });
@@ -36,10 +36,21 @@ const categoryMasterController = () => {
                     });
                 }
 
+                let image = null;
+                if (req.file && req.file.key) {
+                    const cloudfrontUrl = process.env.AWS_URL;
+                    let urlPath = req.file.key;
+                    if (urlPath.startsWith('public/')) {
+                        urlPath = urlPath.substring(7);
+                    }
+                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                    image = `${baseUrl}${urlPath}`;
+                }
+
                 const data = {
                     category_name: req.body.category_name.trim(),
                     category_code: req.body.category_code.trim(),
-                    parent_id: req.body.parent_id || 0
+                    image: image,
                 };
 
                 const mydata = await CategoryMaster.create(data);
@@ -65,44 +76,6 @@ const categoryMasterController = () => {
                     where: {
                         deleted_at: null,
                     },
-                    include: [
-                        {
-                            model: CategoryMaster,
-                            as: 'parent_category',
-                            attributes: ['id', 'category_name', 'category_code']
-                        }
-                    ],
-                    order: [['id', 'DESC']]
-                });
-
-                return res.status(200).json({
-                    success: true,
-                    message: "Category master fetched successfully",
-                    data: mydata,
-                });
-            } catch (error) {
-                console.log(error);
-                logError(error, req);
-                return res.status(500).json({
-                    success: false,
-                    message: "Internal server error",
-                });
-            }
-        },
-        readParentCategories: async (req, res) => {
-            try {
-                const mydata = await CategoryMaster.findAll({
-                    where: {
-                        deleted_at: null,
-                        parent_id: 0
-                    },
-                    include: [
-                        {
-                            model: CategoryMaster,
-                            as: 'parent_category',
-                            attributes: ['id', 'category_name', 'category_code']
-                        }
-                    ],
                     order: [['id', 'DESC']]
                 });
 
@@ -184,7 +157,6 @@ const categoryMasterController = () => {
                     where: {
                         category_code: req.body.category_code.trim(),
                         id: { [Op.ne]: parseInt(req.params.id) },
-                        parent_id: req.body.parent_id || 0,
                         deleted_at: null
                     }
                 });
@@ -196,10 +168,39 @@ const categoryMasterController = () => {
                     });
                 }
 
+                let image = categoryData.image;
+                
+                // Handle new image upload
+                if (req.file && req.file.key) {
+                    // Delete old image from S3 if exists
+                    if (categoryData.image) {
+                        try {
+                            const oldKey = categoryData.image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
+                            if (oldKey && !oldKey.startsWith('public/')) {
+                                await deleteFromBucket(`public/categoryMaster/image/${oldKey.split('/').pop()}`);
+                            } else if (oldKey) {
+                                await deleteFromBucket(oldKey);
+                            }
+                        } catch (deleteError) {
+                            console.log("Error deleting old image:", deleteError);
+                            // Continue even if deletion fails
+                        }
+                    }
+                    
+                    // Construct new image URL
+                    const cloudfrontUrl = process.env.AWS_URL;
+                    let urlPath = req.file.key;
+                    if (urlPath.startsWith('public/')) {
+                        urlPath = urlPath.substring(7);
+                    }
+                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                    image = `${baseUrl}${urlPath}`;
+                }
+
                 const data = {
                     category_name: req.body.category_name.trim(),
                     category_code: req.body.category_code.trim(),
-                    parent_id: req.body.parent_id || 0
+                    image: image,
                 };
 
                 await CategoryMaster.update(data, {
@@ -235,21 +236,6 @@ const categoryMasterController = () => {
                     return res.status(204).json({
                         success: true,
                         message: "Category master not found",
-                    });
-                }
-
-                // Check if category is a parent category (has child categories)
-                const childCategories = await CategoryMaster.findOne({
-                    where: {
-                        parent_id: req.params.id,
-                        deleted_at: null
-                    }
-                });
-
-                if (childCategories) {
-                    return res.status(204).json({
-                        success: true,
-                        message: "Cannot delete parent category. Please delete child categories first.",
                     });
                 }
 
