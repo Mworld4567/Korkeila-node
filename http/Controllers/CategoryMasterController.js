@@ -10,14 +10,14 @@ const categoryMasterController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.category_name || req.body.category_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category name",
                     });
                 }
 
                 if (!req.body.category_code || req.body.category_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category code",
                     });
@@ -31,7 +31,7 @@ const categoryMasterController = () => {
                 });
 
                 if (existingCategory) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Category code already exists",
                     });
@@ -114,7 +114,7 @@ const categoryMasterController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Category master not found",
                     });
@@ -148,21 +148,21 @@ const categoryMasterController = () => {
                 });
 
                 if (!categoryData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Category master not found",
                     });
                 }
 
                 if (!req.body.category_name || req.body.category_name === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter category name",
                     });
                 }
 
                 if (!req.body.category_code || req.body.category_code === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter category code",
                     });
@@ -177,8 +177,8 @@ const categoryMasterController = () => {
                 });
 
                 if (existingCategory) {
-                    return res.status(204).json({
-                        success: true,
+                    return res.status(409).json({
+                        success: false,
                         message: "Category code already exists",
                     });
                 }
@@ -252,7 +252,7 @@ const categoryMasterController = () => {
                 });
 
                 if (!categoryData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Category master not found",
                     });

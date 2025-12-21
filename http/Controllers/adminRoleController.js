@@ -15,7 +15,7 @@ const adminRoleController = () => {
             try {
 
                 if (!req.body.role_name || req.body.role_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter role name",
                     });
@@ -24,7 +24,7 @@ const adminRoleController = () => {
                 const roleName = req.body.role_name.trim();
                 const roleNameRegex = /^[A-Za-z0-9 _]*[A-Za-z]+[A-Za-z0-9 _]*$/;
                 if (!roleNameRegex.test(roleName)) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter a valid role name",
                     });
@@ -38,14 +38,14 @@ const adminRoleController = () => {
                     transaction
                 });
                 if (existingRole) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "This role name is already registered",
                     });
                 }
 
                 if (!req.body.permission || !Array.isArray(req.body.permission) || req.body.permission.length === 0) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter valid permissions",
                     });
@@ -104,7 +104,7 @@ const adminRoleController = () => {
                 });
 
                 if (!mydata.length) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No role found",
                     });
@@ -158,7 +158,7 @@ const adminRoleController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(400).json({ message: "No data", success: false });
+                    return res.status(409).json({ message: "No data", success: true });
                 }
                 let role_permission = mydata.dataValues.role_permission.map(
                     (x) => {
@@ -205,14 +205,14 @@ const adminRoleController = () => {
 
                 const roleData = await AdminRole.findByPk(req.params.id, { transaction });
                 if (!roleData || roleData.deleted_at !== null) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No role details found",
                     });
                 }
 
                 if (!req.body.role_name || req.body.role_name === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter role name",
                     });
@@ -221,7 +221,7 @@ const adminRoleController = () => {
                 const roleName = req.body.role_name.trim();
                 const roleNameRegex = /^[A-Za-z0-9 _]*[A-Za-z]+[A-Za-z0-9 _]*$/;
                 if (!roleNameRegex.test(roleName)) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter a valid role name",
                     });
@@ -237,14 +237,14 @@ const adminRoleController = () => {
                     transaction
                 });
                 if (existingRole) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "This role name is already registered",
                     });
                 }
 
                 if (!req.body.permission || !Array.isArray(req.body.permission) || req.body.permission.length === 0) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter valid permissions",
                     });
@@ -305,7 +305,7 @@ const adminRoleController = () => {
                     transaction,
                 });
                 if (!parametercheck) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No role found",
                     });

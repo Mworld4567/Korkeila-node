@@ -7,14 +7,14 @@ const diamondTypeController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.type_name || req.body.type_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter type name",
                     });
                 }
 
                 if (!req.body.type_code || req.body.type_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter type code",
                     });
@@ -27,7 +27,7 @@ const diamondTypeController = () => {
                 });
 
                 if (existingType) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Type code already exists",
                     });
@@ -80,7 +80,7 @@ const diamondTypeController = () => {
                 const mydata = await DiamondType.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond type not found",
                     });
@@ -104,21 +104,21 @@ const diamondTypeController = () => {
             try {
                 const typeData = await DiamondType.findByPk(req.params.id);
                 if (!typeData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond type not found",
                     });
                 }
 
                 if (!req.body.type_name || req.body.type_name === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter type name",
                     });
                 }
 
                 if (!req.body.type_code || req.body.type_code === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter type code",
                     });
@@ -132,7 +132,7 @@ const diamondTypeController = () => {
                 });
 
                 if (existingType) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Type code already exists",
                     });
@@ -167,7 +167,7 @@ const diamondTypeController = () => {
             try {
                 const typeData = await DiamondType.findByPk(req.params.id);
                 if (!typeData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond type not found",
                     });

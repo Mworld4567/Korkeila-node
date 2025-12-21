@@ -38,7 +38,7 @@ const PermissionController = () => {
                 });
 
                 if (!mydata.length) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No permissions found",
                     });
@@ -102,7 +102,7 @@ const PermissionController = () => {
                 });
 
                 if (!mydata.length) {
-                    return res.status(204).json({ 
+                    return res.status(409).json({ 
                         success: true,
                         message: "No permissions found",
                     });

@@ -7,7 +7,7 @@ const metalController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.metal_name || req.body.metal_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter metal name",
                     });
@@ -20,7 +20,7 @@ const metalController = () => {
                 });
 
                 if (existingMetal) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Metal name already exists",
                     });
@@ -72,7 +72,7 @@ const metalController = () => {
                 const mydata = await Metal.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Metal not found",
                     });
@@ -96,14 +96,14 @@ const metalController = () => {
             try {
                 const metalData = await Metal.findByPk(req.params.id);
                 if (!metalData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Metal not found",
                     });
                 }
 
                 if (!req.body.metal_name || req.body.metal_name === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter metal name",
                     });
@@ -117,7 +117,7 @@ const metalController = () => {
                 });
 
                 if (existingMetal) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Metal name already exists",
                     });
@@ -151,7 +151,7 @@ const metalController = () => {
             try {
                 const metalData = await Metal.findByPk(req.params.id);
                 if (!metalData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Metal not found",
                     });

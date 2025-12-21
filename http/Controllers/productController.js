@@ -14,21 +14,21 @@ const productController = () => {
 
                 // Validate required fields
                 if (!req.body.category_id || req.body.category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category ID",
                     });
                 }
 
                 if (!req.body.sub_category_id || req.body.sub_category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category ID",
                     });
                 }
 
                 if (!req.body.style_id || req.body.style_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter style ID",
                     });
@@ -43,7 +43,7 @@ const productController = () => {
                     // Image provided as text (filename or URL) - extract only filename
                     product_image = extractFilename(req.body.image.trim());
                 } else {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please provide product image",
                     });
@@ -156,7 +156,7 @@ const productController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Product not found",
                     });
@@ -188,7 +188,7 @@ const productController = () => {
             try {
                 const productData = await Product.findByPk(req.params.id);
                 if (!productData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Product not found",
                     });
@@ -196,21 +196,21 @@ const productController = () => {
 
                 // Validate required fields
                 if (!req.body.category_id || req.body.category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category ID",
                     });
                 }
 
                 if (!req.body.sub_category_id || req.body.sub_category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category ID",
                     });
                 }
 
                 if (!req.body.style_id || req.body.style_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter style ID",
                     });
@@ -307,7 +307,7 @@ const productController = () => {
             try {
                 const productData = await Product.findByPk(req.params.id);
                 if (!productData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Product not found",
                     });

@@ -9,14 +9,14 @@ const cutMasterController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.cut_name || req.body.cut_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter cut name",
                     });
                 }
 
                 if (!req.body.cut_code || req.body.cut_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter cut code",
                     });
@@ -29,7 +29,7 @@ const cutMasterController = () => {
                 });
 
                 if (existingCut) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Cut code already exists",
                     });
@@ -104,7 +104,7 @@ const cutMasterController = () => {
                 const mydata = await CutMaster.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Cut master not found",
                     });
@@ -132,21 +132,21 @@ const cutMasterController = () => {
             try {
                 const cutData = await CutMaster.findByPk(req.params.id);
                 if (!cutData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Cut master not found",
                     });
                 }
 
                 if (!req.body.cut_name || req.body.cut_name === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter cut name",
                     });
                 }
 
                 if (!req.body.cut_code || req.body.cut_code === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter cut code",
                     });
@@ -160,7 +160,7 @@ const cutMasterController = () => {
                 });
 
                 if (existingCut) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Cut code already exists",
                     });
@@ -229,7 +229,7 @@ const cutMasterController = () => {
             try {
                 const cutData = await CutMaster.findByPk(req.params.id);
                 if (!cutData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Cut master not found",
                     });
