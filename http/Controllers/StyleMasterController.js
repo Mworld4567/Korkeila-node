@@ -1,6 +1,8 @@
 const logError = require("../../logger/log");
+const Category = require("../../Models/Category");
 const StyleMaster = require("../../Models/StyleMaster");
 const { Op } = require("sequelize");
+const SubCategory = require("../../Models/SubCategory");
 
 const styleMasterController = () => {
     return {
@@ -20,17 +22,25 @@ const styleMasterController = () => {
                     });
                 }
 
-                if (!req.body.category_master_id || req.body.category_master_id === "") {
+                if (!req.body.category_id || req.body.category_id === "") {
                     return res.status(401).json({
                         success: false,
                         message: "Please enter category master id",
                     });
                 }
 
+                if (!req.body.sub_category_id || req.body.sub_category_id === "") {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Please enter sub category id",
+                    });
+                }
+
                 const existingStyle = await StyleMaster.findOne({
                     where: {
                         style_code: req.body.style_code.trim(),
-                        category_master_id: req.body.category_master_id
+                        category_id: req.body.category_id,
+                        sub_category_id: req.body.sub_category_id
                     }
                 });
 
@@ -44,7 +54,8 @@ const styleMasterController = () => {
                 const data = {
                     style_name: req.body.style_name.trim(),
                     style_code: req.body.style_code.trim(),
-                    category_master_id: req.body.category_master_id
+                    category_id: req.body.category_id,
+                    sub_category_id: req.body.sub_category_id
                 };
 
                 const mydata = await StyleMaster.create(data);
@@ -67,7 +78,19 @@ const styleMasterController = () => {
         read: async (req, res) => {
             try {
                 const mydata = await StyleMaster.findAll({
-                    order: [['id', 'DESC']]
+                    order: [['id', 'DESC']],
+                    include: [
+                        {
+                            model: Category,
+                            as: 'category',
+                            attributes: ['id', 'category_name', 'category_code']
+                        },
+                        {
+                            model: SubCategory,
+                            as: 'sub_category',
+                            attributes: ['id', 'sub_category_name', 'sub_category_code']
+                        }
+                    ]
                 });
 
                 return res.status(200).json({
@@ -86,7 +109,20 @@ const styleMasterController = () => {
         },
         readOne: async (req, res) => {
             try {
-                const mydata = await StyleMaster.findByPk(req.params.id);
+                const mydata = await StyleMaster.findByPk(req.params.id, {
+                    include: [
+                        {
+                            model: Category,
+                            as: 'category',
+                            attributes: ['id', 'category_name', 'category_code']
+                        },
+                        {
+                            model: SubCategory,
+                            as: 'sub_category',
+                            attributes: ['id', 'sub_category_name', 'sub_category_code']
+                        }
+                    ]
+                });
 
                 if (!mydata) {
                     return res.status(204).json({
@@ -133,6 +169,20 @@ const styleMasterController = () => {
                     });
                 }
 
+                if (!req.body.category_id || req.body.category_id === "") {
+                    return res.status(204).json({
+                        success: true,
+                        message: "Please enter category id",
+                    });
+                }
+
+                if (!req.body.sub_category_id || req.body.sub_category_id === "") {
+                    return res.status(204).json({
+                        success: true,
+                        message: "Please enter sub category id",
+                    });
+                }
+
                 const existingStyle = await StyleMaster.findOne({
                     where: {
                         style_code: req.body.style_code.trim(),
@@ -150,6 +200,8 @@ const styleMasterController = () => {
                 const data = {
                     style_name: req.body.style_name.trim(),
                     style_code: req.body.style_code.trim(),
+                    category_id: req.body.category_id,
+                    sub_category_id: req.body.sub_category_id
                 };
 
                 await StyleMaster.update(data, {
