@@ -7,7 +7,7 @@ const diamondClarityController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.clarity || req.body.clarity === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter clarity",
                     });
@@ -20,7 +20,7 @@ const diamondClarityController = () => {
                 });
 
                 if (existingClarity) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Clarity already exists",
                     });
@@ -72,7 +72,7 @@ const diamondClarityController = () => {
                 const mydata = await DiamondClarity.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond clarity not found",
                     });
@@ -96,14 +96,14 @@ const diamondClarityController = () => {
             try {
                 const clarityData = await DiamondClarity.findByPk(req.params.id);
                 if (!clarityData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond clarity not found",
                     });
                 }
 
                 if (!req.body.clarity || req.body.clarity === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter clarity",
                     });
@@ -117,7 +117,7 @@ const diamondClarityController = () => {
                 });
 
                 if (existingClarity) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Clarity already exists",
                     });
@@ -151,7 +151,7 @@ const diamondClarityController = () => {
             try {
                 const clarityData = await DiamondClarity.findByPk(req.params.id);
                 if (!clarityData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond clarity not found",
                     });

@@ -7,7 +7,7 @@ const karatController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.karat || req.body.karat === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter karat",
                     });
@@ -20,7 +20,7 @@ const karatController = () => {
                 });
 
                 if (existingKarat) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Karat already exists",
                     });
@@ -72,7 +72,7 @@ const karatController = () => {
                 const mydata = await Karat.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Karat not found",
                     });
@@ -96,14 +96,14 @@ const karatController = () => {
             try {
                 const karatData = await Karat.findByPk(req.params.id);
                 if (!karatData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Karat not found",
                     });
                 }
 
                 if (!req.body.karat || req.body.karat === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter karat",
                     });
@@ -117,7 +117,7 @@ const karatController = () => {
                 });
 
                 if (existingKarat) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Karat already exists",
                     });
@@ -151,7 +151,7 @@ const karatController = () => {
             try {
                 const karatData = await Karat.findByPk(req.params.id);
                 if (!karatData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Karat not found",
                     });

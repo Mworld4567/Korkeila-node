@@ -7,21 +7,21 @@ const diamondMasterController = () => {
         create: async (req, res) => {
             try {
                 if (req.body.carat === undefined || req.body.carat === null) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter carat",
                     });
                 }
 
                 if (req.body.size_from === undefined || req.body.size_from === null) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter size from",
                     });
                 }
 
                 if (req.body.size_to === undefined || req.body.size_to === null) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter size to",
                     });
@@ -83,7 +83,7 @@ const diamondMasterController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond master not found",
                     });
@@ -113,28 +113,28 @@ const diamondMasterController = () => {
                 });
 
                 if (!diamondData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond master not found",
                     });
                 }
 
                 if (req.body.carat === undefined || req.body.carat === null) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter carat",
                     });
                 }
 
                 if (req.body.size_from === undefined || req.body.size_from === null) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter size from",
                     });
                 }
 
                 if (req.body.size_to === undefined || req.body.size_to === null) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter size to",
                     });
@@ -176,7 +176,7 @@ const diamondMasterController = () => {
                 });
 
                 if (!diamondData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond master not found",
                     });

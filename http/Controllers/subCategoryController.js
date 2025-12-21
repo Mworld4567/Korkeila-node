@@ -9,21 +9,21 @@ const subCategoryController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.sub_category_name || req.body.sub_category_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category name",
                     });
                 }
 
                 if (!req.body.sub_category_code || req.body.sub_category_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category code",
                     });
                 }
 
                 if (!req.body.category_id || req.body.category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category id",
                     });
@@ -38,8 +38,8 @@ const subCategoryController = () => {
                 });
 
                 if (!category) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Category not found",
                     });
                 }
@@ -53,7 +53,7 @@ const subCategoryController = () => {
                 });
 
                 if (existingSubCategory) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Sub category code already exists for this category",
                     });
@@ -133,7 +133,7 @@ const subCategoryController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Sub category not found",
                     });
@@ -156,7 +156,7 @@ const subCategoryController = () => {
         readByCategory: async (req, res) => {
             try {
                 if (!req.params.category_id) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please provide category id",
                     });
@@ -199,28 +199,28 @@ const subCategoryController = () => {
                 });
 
                 if (!subCategoryData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Sub category not found",
                     });
                 }
 
                 if (!req.body.sub_category_name || req.body.sub_category_name === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category name",
                     });
                 }
 
                 if (!req.body.sub_category_code || req.body.sub_category_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter sub category code",
                     });
                 }
 
                 if (!req.body.category_id || req.body.category_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter category id",
                     });
@@ -235,8 +235,8 @@ const subCategoryController = () => {
                 });
 
                 if (!category) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Category not found",
                     });
                 }
@@ -251,7 +251,7 @@ const subCategoryController = () => {
                 });
 
                 if (existingSubCategory) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Sub category code already exists for this category",
                     });
@@ -299,7 +299,7 @@ const subCategoryController = () => {
                 });
 
                 if (!subCategoryData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Sub category not found",
                     });
