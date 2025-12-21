@@ -10,6 +10,7 @@ const DiamondMaster = require("../../Models/DiamondMaster");
 const sequelize = require("../../config/dbconfig");
 const Metal = require("../../Models/Metal");
 const GoldColor = require("../../Models/GoldColor");
+const { constructImageUrl } = require("../../helpers/imageHelper");
 
 const designController = () => {
     return {
@@ -781,7 +782,7 @@ const designController = () => {
                     diamond_details: formattedDiamondDetails,
                     images: uniqueImages.map(img => ({
                         id: img.id,
-                        image_name: img.image_name
+                        image_name: constructImageUrl(img.image_name)
                     })),
                     mark_up: designData.mark_up,
                     // is_active: designData.is_active,
@@ -1049,7 +1050,7 @@ const designController = () => {
                         });
                         combo.existing_images = existingImages.map(img => ({
                             id: img.id,
-                            image_name: img.image_name
+                            image_name: constructImageUrl(img.image_name)
                         }));
                     } else {
                         combo.existing_images = [];

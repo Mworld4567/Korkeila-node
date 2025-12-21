@@ -2,6 +2,7 @@ const logError = require("../../logger/log");
 const CutMaster = require("../../Models/CutMaster");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
+const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 
 const cutMasterController = () => {
     return {
@@ -34,15 +35,14 @@ const cutMasterController = () => {
                     });
                 }
 
+                // Handle image - store only filename (last part) in database
                 let cut_image = null;
                 if (req.file && req.file.key) {
-                    const cloudfrontUrl = process.env.AWS_URL;
-                    let urlPath = req.file.key;
-                    if (urlPath.startsWith('public/')) {
-                        urlPath = urlPath.substring(7);
-                    }
-                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
-                    cut_image = `${baseUrl}${urlPath}`;
+                    // Image uploaded as file - extract only the filename (last part)
+                    cut_image = extractFilename(req.file.key);
+                } else if (req.body.cut_image && req.body.cut_image !== "") {
+                    // Image provided as text (filename or URL) - extract only filename
+                    cut_image = extractFilename(req.body.cut_image.trim());
                 }
 
                 const data = {
@@ -53,10 +53,14 @@ const cutMasterController = () => {
 
                 const mydata = await CutMaster.create(data);
 
+                // Construct full URL for response
+                const responseData = mydata.toJSON();
+                responseData.cut_image = constructImageUrl(responseData.cut_image, 'cutMaster');
+
                 return res.status(200).json({
                     success: true,
                     message: "Cut master created successfully",
-                    data: mydata,
+                    data: responseData,
                 });
 
             } catch (error) {
@@ -74,10 +78,17 @@ const cutMasterController = () => {
                     order: [['id', 'DESC']]
                 });
 
+                // Construct full URLs for images dynamically
+                const dataWithUrls = mydata.map(item => {
+                    const itemData = item.toJSON();
+                    itemData.cut_image = constructImageUrl(itemData.cut_image, 'cutMaster');
+                    return itemData;
+                });
+
                 return res.status(200).json({
                     success: true,
                     message: "Cut master fetched successfully",
-                    data: mydata,
+                    data: dataWithUrls,
                 });
             } catch (error) {
                 console.log(error);
@@ -99,10 +110,14 @@ const cutMasterController = () => {
                     });
                 }
 
+                // Construct full URL for image dynamically
+                const responseData = mydata.toJSON();
+                responseData.cut_image = constructImageUrl(responseData.cut_image);
+
                 return res.status(200).json({
                     success: true,
                     message: "Cut master fetched successfully",
-                    data: mydata,
+                    data: responseData,
                 });
             } catch (error) {
                 console.log(error);
@@ -151,33 +166,33 @@ const cutMasterController = () => {
                     });
                 }
 
-                let cut_image = cutData.cut_image;
+                // Handle image - always extract only filename (last part), even from existing data
+                let cut_image = null;
                 
                 // Handle new image upload
                 if (req.file && req.file.key) {
                     // Delete old image from S3 if exists
                     if (cutData.cut_image) {
                         try {
-                            const oldKey = cutData.cut_image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
-                            if (oldKey && !oldKey.startsWith('public/')) {
-                                await deleteFromBucket(`public/cutMaster/image/${oldKey.split('/').pop()}`);
-                            } else if (oldKey) {
-                                await deleteFromBucket(oldKey);
-                            }
+                            // Extract filename from old value (might be URL, path, or just filename)
+                            const oldFilename = extractFilename(cutData.cut_image);
+                            // Construct full S3 key for deletion: public/cutMaster/image/{filename}
+                            const fullOldKey = `public/cutMaster/image/${oldFilename}`;
+                            await deleteFromBucket(fullOldKey);
                         } catch (deleteError) {
                             console.log("Error deleting old image:", deleteError);
                             // Continue even if deletion fails
                         }
                     }
                     
-                    // Construct new image URL
-                    const cloudfrontUrl = process.env.AWS_URL;
-                    let urlPath = req.file.key;
-                    if (urlPath.startsWith('public/')) {
-                        urlPath = urlPath.substring(7);
-                    }
-                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
-                    cut_image = `${baseUrl}${urlPath}`;
+                    // Store only filename (last part)
+                    cut_image = extractFilename(req.file.key);
+                } else if (req.body.cut_image && req.body.cut_image !== "") {
+                    // Image provided as text - extract only filename
+                    cut_image = extractFilename(req.body.cut_image.trim());
+                } else if (cutData.cut_image) {
+                    // No new image provided, but existing image exists - extract only filename from it (might be URL or path)
+                    cut_image = extractFilename(cutData.cut_image);
                 }
 
                 const data = {
@@ -192,10 +207,14 @@ const cutMasterController = () => {
 
                 const updatedData = await CutMaster.findByPk(req.params.id);
 
+                // Construct full URL for response
+                const responseData = updatedData.toJSON();
+                responseData.cut_image = constructImageUrl(responseData.cut_image, 'cutMaster');
+
                 return res.status(200).json({
                     success: true,
                     message: "Cut master updated successfully",
-                    data: updatedData,
+                    data: responseData,
                 });
             } catch (error) {
                 console.log(error);
@@ -219,12 +238,11 @@ const cutMasterController = () => {
                 // Delete image from S3 if exists
                 if (cutData.cut_image) {
                     try {
-                        const oldKey = cutData.cut_image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
-                        if (oldKey && !oldKey.startsWith('public/')) {
-                            await deleteFromBucket(`public/cutMaster/image/${oldKey.split('/').pop()}`);
-                        } else if (oldKey) {
-                            await deleteFromBucket(oldKey);
-                        }
+                        // Extract filename from stored value (might be URL, path, or just filename)
+                        const filename = extractFilename(cutData.cut_image);
+                        // Construct full S3 key for deletion: public/cutMaster/image/{filename}
+                        const fullOldKey = `public/cutMaster/image/${filename}`;
+                        await deleteFromBucket(fullOldKey);
                     } catch (deleteError) {
                         console.log("Error deleting image from S3:", deleteError);
                         // Continue even if deletion fails

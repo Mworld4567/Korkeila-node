@@ -3,6 +3,7 @@ const CategoryMaster = require("../../Models/Category");
 const dateFunc = require("../../helpers/dateFunc");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
+const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 
 const categoryMasterController = () => {
     return {
@@ -36,15 +37,14 @@ const categoryMasterController = () => {
                     });
                 }
 
+                // Handle image - store only filename (last part) in database
                 let image = null;
                 if (req.file && req.file.key) {
-                    const cloudfrontUrl = process.env.AWS_URL;
-                    let urlPath = req.file.key;
-                    if (urlPath.startsWith('public/')) {
-                        urlPath = urlPath.substring(7);
-                    }
-                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
-                    image = `${baseUrl}${urlPath}`;
+                    // Image uploaded as file - extract only the filename (last part)
+                    image = extractFilename(req.file.key);
+                } else if (req.body.image && req.body.image !== "") {
+                    // Image provided as text (filename or URL) - extract only filename
+                    image = extractFilename(req.body.image.trim());
                 }
 
                 const data = {
@@ -55,10 +55,14 @@ const categoryMasterController = () => {
 
                 const mydata = await CategoryMaster.create(data);
 
+                // Construct full URL for response
+                const responseData = mydata.toJSON();
+                responseData.image = constructImageUrl(responseData.image, 'categoryMaster');
+
                 return res.status(200).json({
                     success: true,
                     message: "Category master created successfully",
-                    data: mydata,
+                    data: responseData,
                 });
 
             } catch (error) {
@@ -79,10 +83,17 @@ const categoryMasterController = () => {
                     order: [['id', 'DESC']]
                 });
 
+                // Construct full URLs for images dynamically
+                const dataWithUrls = mydata.map(item => {
+                    const itemData = item.toJSON();
+                    itemData.image = constructImageUrl(itemData.image, 'categoryMaster');
+                    return itemData;
+                });
+
                 return res.status(200).json({
                     success: true,
                     message: "Category master fetched successfully",
-                    data: mydata,
+                    data: dataWithUrls,
                 });
             } catch (error) {
                 console.log(error);
@@ -109,10 +120,14 @@ const categoryMasterController = () => {
                     });
                 }
 
+                // Construct full URL for image dynamically
+                const responseData = mydata.toJSON();
+                responseData.image = constructImageUrl(responseData.image, 'categoryMaster');
+
                 return res.status(200).json({
                     success: true,
                     message: "Category master fetched successfully",
-                    data: mydata,
+                    data: responseData,
                 });
             } catch (error) {
                 console.log(error);
@@ -168,33 +183,33 @@ const categoryMasterController = () => {
                     });
                 }
 
-                let image = categoryData.image;
+                // Handle image - always extract only filename (last part), even from existing data
+                let image = null;
                 
                 // Handle new image upload
                 if (req.file && req.file.key) {
                     // Delete old image from S3 if exists
                     if (categoryData.image) {
                         try {
-                            const oldKey = categoryData.image.replace(process.env.AWS_URL + '/', '').replace(process.env.AWS_URL, '');
-                            if (oldKey && !oldKey.startsWith('public/')) {
-                                await deleteFromBucket(`public/categoryMaster/image/${oldKey.split('/').pop()}`);
-                            } else if (oldKey) {
-                                await deleteFromBucket(oldKey);
-                            }
+                            // Extract filename from old value (might be URL, path, or just filename)
+                            const oldFilename = extractFilename(categoryData.image);
+                            // Construct full S3 key for deletion: public/categoryMaster/image/{filename}
+                            const fullOldKey = `public/categoryMaster/image/${oldFilename}`;
+                            await deleteFromBucket(fullOldKey);
                         } catch (deleteError) {
                             console.log("Error deleting old image:", deleteError);
                             // Continue even if deletion fails
                         }
                     }
                     
-                    // Construct new image URL
-                    const cloudfrontUrl = process.env.AWS_URL;
-                    let urlPath = req.file.key;
-                    if (urlPath.startsWith('public/')) {
-                        urlPath = urlPath.substring(7);
-                    }
-                    const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
-                    image = `${baseUrl}${urlPath}`;
+                    // Store only filename (last part)
+                    image = extractFilename(req.file.key);
+                } else if (req.body.image && req.body.image !== "") {
+                    // Image provided as text - extract only filename
+                    image = extractFilename(req.body.image.trim());
+                } else if (categoryData.image) {
+                    // No new image provided, but existing image exists - extract only filename from it (might be URL or path)
+                    image = extractFilename(categoryData.image);
                 }
 
                 const data = {
@@ -209,10 +224,14 @@ const categoryMasterController = () => {
 
                 const updatedData = await CategoryMaster.findByPk(req.params.id);
 
+                // Construct full URL for response
+                const responseData = updatedData.toJSON();
+                responseData.image = constructImageUrl(responseData.image, 'categoryMaster');
+
                 return res.status(200).json({
                     success: true,
                     message: "Category master updated successfully",
-                    data: updatedData,
+                    data: responseData,
                 });
             } catch (error) {
                 console.log(error);
