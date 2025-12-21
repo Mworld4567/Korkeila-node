@@ -6,6 +6,7 @@ const Metal = sequelize.define(
     {
         id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
         metal_name: { type: Sequelize.STRING(255), allowNull: false },
+        metal_code: { type: Sequelize.STRING(255), allowNull: false },
         deleted_at: { type: Sequelize.DATE, allowNull: true },
     },
     {

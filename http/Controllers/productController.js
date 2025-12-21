@@ -52,6 +52,18 @@ const productController = () => {
                 // Get is_display value, default to 1 if not provided
                 const is_display = req.body.is_display !== undefined ? parseInt(req.body.is_display) : 1;
 
+                // Generate product_name from first letters of category_name, sub_category_name, and style_name
+                const categoryFirstLetter = req.body.category_name && req.body.category_name.trim().length > 0 
+                    ? req.body.category_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const subCategoryFirstLetter = req.body.sub_category_name && req.body.sub_category_name.trim().length > 0 
+                    ? req.body.sub_category_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const styleFirstLetter = req.body.style_name && req.body.style_name.trim().length > 0 
+                    ? req.body.style_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const product_name = categoryFirstLetter + subCategoryFirstLetter + styleFirstLetter;
+
                 const data = {
                     category_id: parseInt(req.body.category_id),
                     category_name: req.body.category_name,
@@ -60,6 +72,7 @@ const productController = () => {
                     style_id: parseInt(req.body.style_id),
                     style_name: req.body.style_name,
                     image: product_image, // Store only filename/key
+                    product_name: product_name,
                     is_display: is_display,
                 };
 
@@ -249,11 +262,29 @@ const productController = () => {
                 // Get is_display value
                 const is_display = req.body.is_display !== undefined ? parseInt(req.body.is_display) : productData.is_display;
 
+                // Fetch category, subcategory, and style to get names for product_name generation
+                const category = await Category.findByPk(parseInt(req.body.category_id));
+                const subCategory = await SubCategory.findByPk(parseInt(req.body.sub_category_id));
+                const style = await StyleMaster.findByPk(parseInt(req.body.style_id));
+
+                // Generate product_name from first letters of category_name, sub_category_name, and style_name
+                const categoryFirstLetter = category && category.category_name && category.category_name.trim().length > 0 
+                    ? category.category_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const subCategoryFirstLetter = subCategory && subCategory.sub_category_name && subCategory.sub_category_name.trim().length > 0 
+                    ? subCategory.sub_category_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const styleFirstLetter = style && style.style_name && style.style_name.trim().length > 0 
+                    ? style.style_name.trim().charAt(0).toUpperCase() 
+                    : '';
+                const product_name = categoryFirstLetter + subCategoryFirstLetter + styleFirstLetter;
+
                 const data = {
                     category_id: parseInt(req.body.category_id),
                     sub_category_id: parseInt(req.body.sub_category_id),
                     style_id: parseInt(req.body.style_id),
                     image: product_image, // Store only filename/key
+                    product_name: product_name,
                     is_display: is_display,
                 };
 
@@ -344,6 +375,33 @@ const productController = () => {
                 });
             }
         },
+        productDropdown: async (req, res) => {
+            try {
+                const ProductData = await Product.findAll({
+                    attributes: ['id', 'product_name'],
+                    where: {
+                        [Op.and]: [
+                            { product_name: { [Op.ne]: null } },
+                            { product_name: { [Op.ne]: '' } }
+                        ]
+                    }
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Product dropdown fetched successfully",
+                    data: ProductData,
+                });
+                
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 

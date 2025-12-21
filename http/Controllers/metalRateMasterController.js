@@ -162,6 +162,51 @@ const metalRateMasterController = () => {
                 });
             }
         },
+        metalRateMasterDropdown: async (req, res) => {
+            try {
+
+                const mydata = await MetalRateMaster.findAll({
+                    include: [
+                        {
+                            model: Karat,
+                            as: 'karat',
+                            attributes: ['id', 'karat'],
+                        },
+                        {
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name', 'metal_code']
+                        }
+                    ],
+                    order: [['id', 'DESC']]
+                });
+
+                const data = mydata.map((x) => {
+                    const metal = x.dataValues.metal ? x.dataValues.metal.dataValues : null;
+                    const metalCode = metal ? (metal.metal_code || metal.metal_name) : null;
+                    const karat = x.dataValues.karat ? x.dataValues.karat.dataValues.karat : null;
+                    const name = metalCode && karat ? `${metalCode} ${karat}` : (metalCode || karat || '');
+                    
+                    return {
+                        id: x.dataValues.id,
+                        name: name
+                    };
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Metal rate master fetched successfully",
+                    data: data,
+                });
+            } catch (error) {
+                console.log(error)
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
     };
 };  
 module.exports = metalRateMasterController;

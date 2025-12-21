@@ -278,6 +278,26 @@ const categoryMasterController = () => {
                 });
             }
         },
+        categoryDropdown: async (req, res) => {
+            try {
+                const categoryData = await CategoryMaster.findAll({
+                    attributes: ['id', 'category_name'],
+                    order: [['id', 'ASC']]
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: "Category dropdown fetched successfully",
+                    data: categoryData,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 
