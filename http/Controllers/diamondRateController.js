@@ -333,6 +333,51 @@ const diamondRateController = () => {
                 });
             }
         },
+        diamondRateDropdown: async (req, res) => {
+            try {
+                const mydata = await DiamondRate.findAll({
+                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id'],
+                    order: [['id', 'ASC']],
+                    include: [
+                        {
+                            model: DiamondMaster,
+                            as: 'diamond_master',
+                            attributes: ['id', 'carat'],
+                        },
+                        {
+                            model: DiamondType,
+                            as: 'diamond_type',
+                            attributes: ['id', 'type_name'],
+                        },
+                        {
+                            model: DiamondClarity,
+                            as: 'clarity',
+                            attributes: ['id', 'clarity'],
+                        }
+                    ]
+                });
+
+                const data = mydata.map((x) => {
+                    return {
+                        id: x.dataValues.id,
+                        name: x.dataValues.diamond_type.dataValues.clarity + " " + x.dataValues.diamond_type.dataValues.type_code + " " + x.dataValues.clarity.dataValues.clarity,
+                    };
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Diamond rate dropdown fetched successfully",
+                    data: data,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
     };
 };
 

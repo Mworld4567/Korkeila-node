@@ -10,5 +10,6 @@ Router.get("/readOne/:id", authMiddleware, subCategoryController().readOne);
 Router.get("/readByCategory/:category_id", authMiddleware, subCategoryController().readByCategory);
 Router.put("/update/:id", authMiddleware, transactionMiddleware(subCategoryController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(subCategoryController().delete));
+Router.get("/dropdown", authMiddleware, subCategoryController().subCategoryDropdown);
 
 module.exports = Router;

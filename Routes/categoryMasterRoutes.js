@@ -10,6 +10,6 @@ Router.get("/read", authMiddleware, categoryMasterController().read);
 Router.get("/readOne/:id", authMiddleware, categoryMasterController().readOne);
 Router.put("/update/:id", authMiddleware, uploadInS3Image.single("image"), transactionMiddleware(categoryMasterController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(categoryMasterController().delete));
-
+Router.get("/dropdown", authMiddleware, categoryMasterController().categoryDropdown);
 module.exports = Router;
 

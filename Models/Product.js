@@ -12,6 +12,7 @@ const Product = sequelize.define(
         sub_category_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
         style_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
         image: { type: Sequelize.STRING(255), allowNull: false },
+        product_name: { type: Sequelize.STRING(255), allowNull: false },
         is_display: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
     },
     {
