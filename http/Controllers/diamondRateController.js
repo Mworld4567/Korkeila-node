@@ -11,28 +11,28 @@ const diamondRateController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.diamond_master_id || req.body.diamond_master_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter diamond master id",
                     });
                 }
 
                 if (!req.body.diamond_type_id || req.body.diamond_type_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter diamond type id",
                     });
                 }
 
                 if (!req.body.clarity_id || req.body.clarity_id === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter clarity id",
                     });
                 }
 
                 if (req.body.rate === undefined || req.body.rate === null || req.body.rate === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter rate",
                     });
@@ -47,8 +47,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondMaster) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond master not found",
                     });
                 }
@@ -60,8 +60,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondType) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond type not found",
                     });
                 }
@@ -73,8 +73,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondClarity) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond clarity not found",
                     });
                 }
@@ -90,7 +90,7 @@ const diamondRateController = () => {
                 });
 
                 if (existingRate) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Diamond rate already exists for this combination",
                     });
@@ -153,7 +153,7 @@ const diamondRateController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond rate not found",
                     });
@@ -175,43 +175,37 @@ const diamondRateController = () => {
         },
         update: async (req, res) => {
             try {
-                const rateData = await DiamondRate.findOne({
-                    where: {
-                        id: req.params.id,
-                        deleted_at: null
-                    }
-                });
-
+                const rateData = await DiamondRate.findByPk(req.params.id);
                 if (!rateData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond rate not found",
                     });
                 }
 
                 if (!req.body.diamond_master_id || req.body.diamond_master_id === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter diamond master id",
                     });
                 }
 
                 if (!req.body.diamond_type_id || req.body.diamond_type_id === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter diamond type id",
                     });
                 }
 
                 if (!req.body.clarity_id || req.body.clarity_id === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter clarity id",
                     });
                 }
 
                 if (req.body.rate === undefined || req.body.rate === null || req.body.rate === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter rate",
                     });
@@ -226,8 +220,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondMaster) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond master not found",
                     });
                 }
@@ -239,8 +233,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondType) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond type not found",
                     });
                 }
@@ -252,8 +246,8 @@ const diamondRateController = () => {
                 });
 
                 if (!diamondClarity) {
-                    return res.status(401).json({
-                        success: false,
+                    return res.status(409).json({
+                        success: true,
                         message: "Diamond clarity not found",
                     });
                 }
@@ -270,7 +264,7 @@ const diamondRateController = () => {
                 });
 
                 if (existingRate) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Diamond rate already exists for this combination",
                     });
@@ -313,7 +307,7 @@ const diamondRateController = () => {
                 });
 
                 if (!rateData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Diamond rate not found",
                     });

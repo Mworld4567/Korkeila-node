@@ -16,21 +16,21 @@ const adminController = () => {
             try {
 
                 if (!req.body.email || req.body.email === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter your email",
                     });
                 }
 
                 if (!req.body.password || req.body.password === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter your password",
                     });
                 }
 
                 if (!req.body.username || req.body.username === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter your username",
                     });
@@ -38,7 +38,7 @@ const adminController = () => {
 
                 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
                 if (!passwordRegex.test(req.body.password)) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Password must have uppercase, lowercase, special character, number and minimum 8 characters",
                     });
@@ -46,7 +46,7 @@ const adminController = () => {
 
                 const existingAdmin = await Admin.findOne({ where: { email: req.body.email }, transaction });
                 if (existingAdmin) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "This email address is already registered",
                     });
@@ -55,7 +55,7 @@ const adminController = () => {
                 if (req.body.mobile_number && req.body.mobile_number !== "") {
                     const mobileRegex = /^[0-9]{10}$/;
                     if (!mobileRegex.test(req.body.mobile_number)) {
-                        return res.status(401).json({
+                        return res.status(409).json({
                             success: false,
                             message: "Please enter a valid 10-digit mobile number",
                         });
@@ -125,7 +125,7 @@ const adminController = () => {
                     ],
                 });
                 if (!mydata.length) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No user found",
                     });
@@ -174,7 +174,7 @@ const adminController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({ 
+                    return res.status(409).json({ 
                         success: true,
                         message: "No user details found",
                     });
@@ -209,7 +209,7 @@ const adminController = () => {
 
                 const userData = await Admin.findByPk(req.params.id, { transaction });
                 if (!userData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No user details found",
                     });
@@ -230,7 +230,7 @@ const adminController = () => {
                 }
 
                 if (!req.body.password || req.body.password === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter your password",
                     });
@@ -238,7 +238,7 @@ const adminController = () => {
 
                 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
                 if (!passwordRegex.test(req.body.password)) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Password must have uppercase, lowercase, special character, number and minimum 8 characters",
                     });
@@ -284,7 +284,7 @@ const adminController = () => {
                     transaction,
                 });
                 if (!parametercheck) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "No user found",
                     });

@@ -7,7 +7,7 @@ const uiStringController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.ui_string_key || req.body.ui_string_key === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter UI string key",
                     });
@@ -20,7 +20,7 @@ const uiStringController = () => {
                 });
 
                 if (existingString) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "UI string with this key already exists",
                     });
@@ -72,7 +72,7 @@ const uiStringController = () => {
                 const mydata = await UiString.findByPk(req.params.id);
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "UI string not found",
                     });
@@ -96,14 +96,14 @@ const uiStringController = () => {
             try {
                 const stringData = await UiString.findByPk(req.params.id);
                 if (!stringData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "UI string not found",
                     });
                 }
 
                 if (!req.body.ui_string_key || req.body.ui_string_key === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter UI string key",
                     });
@@ -117,7 +117,7 @@ const uiStringController = () => {
                 });
 
                 if (existingString) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "UI string with this key already exists",
                     });
@@ -151,7 +151,7 @@ const uiStringController = () => {
             try {
                 const stringData = await UiString.findByPk(req.params.id);
                 if (!stringData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "UI string not found",
                     });

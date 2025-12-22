@@ -8,14 +8,14 @@ const goldColorController = () => {
         create: async (req, res) => {
             try {
                 if (!req.body.color || req.body.color === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter color",
                     });
                 }
 
                 if (!req.body.colour_code || req.body.colour_code === "") {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter colour code",
                     });
@@ -30,7 +30,7 @@ const goldColorController = () => {
                 });
 
                 if (existingGoldColor) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Colour code already exists",
                     });
@@ -92,7 +92,7 @@ const goldColorController = () => {
                 });
 
                 if (!mydata) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Gold color not found",
                     });
@@ -122,21 +122,21 @@ const goldColorController = () => {
                 });
 
                 if (!goldColorData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Gold color not found",
                     });
                 }
 
                 if (!req.body.color || req.body.color === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter color",
                     });
                 }
 
                 if (!req.body.colour_code || req.body.colour_code === "") {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please enter colour code",
                     });
@@ -151,8 +151,8 @@ const goldColorController = () => {
                 });
 
                 if (existingGoldColor) {
-                    return res.status(204).json({
-                        success: true,
+                    return res.status(409).json({
+                        success: false,
                         message: "Colour code already exists",
                     });
                 }
@@ -192,7 +192,7 @@ const goldColorController = () => {
                 });
 
                 if (!goldColorData) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Gold color not found",
                     });

@@ -15,14 +15,14 @@ module.exports = {
         try {
 
             if (!req.body.email || req.body.email === "") {
-                return res.status(401).json({
+                return res.status(409).json({
                     success: false,
                     message: "Please enter your email",
                 });
             }
 
             if (!req.body.password || req.body.password === "") {
-                return res.status(401).json({
+                return res.status(409).json({
                     success: false,
                     message: "Please enter your password",
                 });
@@ -40,7 +40,7 @@ module.exports = {
                             message: x.msg,
                         };
                     });
-                    return res.status(401).json({
+                    return res.status(409).json({
                         error,
                         success: false
                     });
@@ -48,7 +48,7 @@ module.exports = {
                 const { email, password } = req.body;
                 let user = await Admin.findOne({ where: { email } });
                 if (!user) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "This email address is not registered.",
                     });
@@ -56,7 +56,7 @@ module.exports = {
 
                 const comparePassword = await bcrypt.compare(password, user.dataValues.password);
                 if (!comparePassword) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "Please enter valid password",
                     });
@@ -64,7 +64,7 @@ module.exports = {
 
 
                 if (user.dataValues.status === 0) {
-                    return res.status(401).json({
+                    return res.status(409).json({
                         success: false,
                         message: "You are deactivated, Please contact your administrator.",
                     });
@@ -110,7 +110,7 @@ module.exports = {
                     username: user.username,
                 });
             } else {
-                return res.status(401).json({
+                return res.status(409).json({
                     success: false,
                     message: "Your IP is restricted to login."
                 });
@@ -128,14 +128,14 @@ module.exports = {
         try {
             const { refresh_token } = req.body;
             if (!refresh_token || refresh_token === "") {
-                return res.status(401).json({
+                return res.status(409).json({
                     success: false,
                     message: "Please enter your refresh token"
                 });
             }
 
             let user = await Admin.findOne({ where: { refresh_token, deleted_at: null }, attributes: ['id'], raw: true });
-            if (!user) return res.status(401).json({ 
+            if (!user) return res.status(409).json({ 
                 success: false,
                 message: "Failed to get token"
             });
@@ -155,7 +155,7 @@ module.exports = {
                 { where: { refresh_token }, transaction }
             );
 
-            return res.cookie("authorization", `Bearer ${authToken}`).status(401).json({
+            return res.cookie("authorization", `Bearer ${authToken}`).status(200).json({
                 success: true,
                 authToken
             });
@@ -172,7 +172,7 @@ module.exports = {
         try {
 
             if (!req.user) {
-                return res.status(401).json({
+                return res.status(409).json({
                     success: false,
                     message: "Please do login first",
                 });

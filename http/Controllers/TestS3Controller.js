@@ -65,7 +65,7 @@ const testS3Controller = () => {
                 const { filePath } = req.body;
 
                 if (!filePath) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please provide filePath in request body",
                     });
@@ -98,7 +98,7 @@ const testS3Controller = () => {
                 const { filePath } = req.body;
 
                 if (!filePath) {
-                    return res.status(204).json({
+                    return res.status(409).json({
                         success: true,
                         message: "Please provide filePath in request body",
                     });
