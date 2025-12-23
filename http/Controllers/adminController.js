@@ -116,6 +116,9 @@ const adminController = () => {
             try {
 
                 const mydata = await Admin.findAll({
+                    where: {
+                        deleted_at: null
+                    },
                     include: [
                         {
                             model: AdminRole,
@@ -169,7 +172,8 @@ const adminController = () => {
 
                 let mydata = await Admin.findOne({
                     where: {
-                        id: req.params.id
+                        id: req.params.id,
+                        deleted_at: null
                     },
                 });
 
