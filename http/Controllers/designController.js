@@ -18,6 +18,7 @@ const DiamondClarity = require("../../Models/DiamondClarity");
 const Category = require("../../Models/Category");
 const ProductTranslation = require("../../Models/ProductTranslation");
 const { Op } = require("sequelize");
+const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 
 const designController = () => {
     return {
@@ -172,7 +173,8 @@ const designController = () => {
                         diamond_design_detail: formattedDiamondDetails,
                         images: images.map(img => ({
                             id: img.id,
-                            image_name: img.image_name
+                            image_name: img.image_name,
+                            image_url: constructImageUrl(img.image_name, 'design')
                         }))
                     };
                 });
@@ -222,6 +224,18 @@ const designController = () => {
                         success: false,
                         message: "Please enter weight",
                     });
+                }
+
+                // Parse diamond_design_detail if it's a JSON string (when sent as form-data)
+                if (req.body.diamond_design_detail && typeof req.body.diamond_design_detail === 'string') {
+                    try {
+                        req.body.diamond_design_detail = JSON.parse(req.body.diamond_design_detail);
+                    } catch (error) {
+                        return res.status(401).json({
+                            success: false,
+                            message: "Invalid diamond design details format",
+                        });
+                    }
                 }
 
                 if (!req.body.diamond_design_detail || !Array.isArray(req.body.diamond_design_detail) || req.body.diamond_design_detail.length === 0) {
@@ -274,6 +288,26 @@ const designController = () => {
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
 
+                // Handle file uploads - save to DesignsImages table
+                const uploadedImages = [];
+                if (req.files && req.files.length > 0) {
+                    const imageRecords = req.files.map(file => {
+                        // Extract filename from S3 key (file.key contains the full S3 path)
+                        const imageName = extractFilename(file.key) || file.originalname;
+                        return {
+                            design_id: design.id,
+                            image_name: imageName,
+                        };
+                    });
+
+                    const createdImages = await DesignsImages.bulkCreate(imageRecords, { transaction });
+                    uploadedImages.push(...createdImages.map(img => ({
+                        id: img.id,
+                        image_name: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design')
+                    })));
+                }
+
                 // Prepare response data
                 const responseData = {
                     id: design.id,
@@ -291,6 +325,7 @@ const designController = () => {
                         diamond_rate_name: detail.diamond_rate_name || "",
                         pcs: detail.pcs,
                     })),
+                    images: uploadedImages,
                 };
 
                 return res.status(200).json({
@@ -993,6 +1028,15 @@ const designController = () => {
                 // Update diamond_details if filtered
                 if (updatedDiamondDetails.length > 0) {
                     designData.diamond_details = updatedDiamondDetails;
+                }
+
+                // Construct full image URLs for images
+                if (designData.images && Array.isArray(designData.images)) {
+                    designData.images = designData.images.map(img => ({
+                        id: img.id,
+                        image_name: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design')
+                    }));
                 }
 
                 designData.total_price = parseFloat(totalPrice.toFixed(2)) + " €";
