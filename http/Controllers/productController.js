@@ -260,9 +260,11 @@ const productController = () => {
             }
         },
         update: async (req, res) => {
+            const transaction = await sequelize.transaction();
             try {
-                const productData = await Product.findByPk(req.params.id);
+                const productData = await Product.findByPk(req.params.id, { transaction });
                 if (!productData) {
+                    await transaction.rollback();
                     return res.status(409).json({
                         success: true,
                         message: "Product not found",
@@ -271,6 +273,7 @@ const productController = () => {
 
                 // Validate required fields
                 if (!req.body.category_id || req.body.category_id === "") {
+                    await transaction.rollback();
                     return res.status(409).json({
                         success: false,
                         message: "Please enter category ID",
@@ -278,6 +281,7 @@ const productController = () => {
                 }
 
                 if (!req.body.sub_category_id || req.body.sub_category_id === "") {
+                    await transaction.rollback();
                     return res.status(409).json({
                         success: false,
                         message: "Please enter sub category ID",
@@ -285,6 +289,7 @@ const productController = () => {
                 }
 
                 if (!req.body.style_id || req.body.style_id === "") {
+                    await transaction.rollback();
                     return res.status(409).json({
                         success: false,
                         message: "Please enter style ID",
@@ -325,9 +330,9 @@ const productController = () => {
                 const is_display = req.body.is_display !== undefined ? parseInt(req.body.is_display) : productData.is_display;
 
                 // Fetch category, subcategory, and style to get names for product_name generation
-                const category = await Category.findByPk(parseInt(req.body.category_id));
-                const subCategory = await SubCategory.findByPk(parseInt(req.body.sub_category_id));
-                const style = await StyleMaster.findByPk(parseInt(req.body.style_id));
+                const category = await Category.findByPk(parseInt(req.body.category_id), { transaction });
+                const subCategory = await SubCategory.findByPk(parseInt(req.body.sub_category_id), { transaction });
+                const style = await StyleMaster.findByPk(parseInt(req.body.style_id), { transaction });
 
                 // Generate product_name from first letters of category_name, sub_category_name, and style_name
                 const categoryFirstLetter = category && category.category_name && category.category_name.trim().length > 0 
@@ -351,8 +356,29 @@ const productController = () => {
                 };
 
                 await Product.update(data, {
-                    where: { id: req.params.id }
+                    where: { id: req.params.id },
+                    transaction
                 });
+
+                // Update product translations if product_name_array is provided
+                if (req.body.product_name_array && Array.isArray(req.body.product_name_array) && req.body.product_name_array.length > 0) {
+                    // Delete existing translations
+                    await ProductTranslation.destroy({
+                        where: { product_id: req.params.id },
+                        transaction
+                    });
+
+                    // Create new translations
+                    const product_name_array = [];
+                    for (const language of req.body.product_name_array) {
+                        product_name_array.push({
+                            product_id: parseInt(req.params.id),
+                            language_id: language.language_id,
+                            product_name: language.product_name,
+                        });
+                    }
+                    await ProductTranslation.bulkCreate(product_name_array, { transaction });
+                }
 
                 const updatedData = await Product.findByPk(req.params.id, {
                     include: [
@@ -370,9 +396,24 @@ const productController = () => {
                             model: StyleMaster,
                             as: 'style',
                             attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id']
+                        },
+                        {
+                            model: ProductTranslation,
+                            as: 'product_translations',
+                            attributes: ['id', 'product_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name']
+                                }
+                            ]
                         }
-                    ]
+                    ],
+                    transaction
                 });
+
+                await transaction.commit();
 
                 // Construct full URL for response
                 const responseData = updatedData.toJSON();
@@ -390,6 +431,7 @@ const productController = () => {
             } catch (error) {
                 console.log(error);
                 logError(error, req);
+                await transaction.rollback();
                 return res.status(500).json({
                     success: false,
                     message: "Internal server error",
