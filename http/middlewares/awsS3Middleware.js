@@ -460,6 +460,38 @@ let uploadReferenceImagesInS3 = multer({
   }),
 });
 
+// Multer middleware for design files - accepts any file type, multiple files
+let uploadDesignFilesInS3 = multer({
+  // No fileFilter - accepts any file type
+  storage: multerS3({
+    s3,
+    bucket: process.env.AWS_BUCKET_NAME,
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    metadata: (req, file, cb) => {
+      cb(null, {
+        fieldName: file.fieldname,
+      });
+    },
+    key: (req, file, cb) => {
+      // Handle undefined originalname
+      const originalName = file.originalname || `file_${Date.now()}`;
+      // Handle undefined baseUrl segment
+      const baseUrlParts = req.baseUrl ? req.baseUrl.split("/") : [];
+      const routeName = baseUrlParts[2] || "design";
+      
+      // Generate unique filename with timestamp
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${originalName}`;
+      
+      // Store files in public/ subfolder: public/{routeName}/image/{filename}
+      const s3Key = `public/${routeName}/image/${uniqueFileName}`;
+      console.log("Design File S3 Key:", s3Key);
+      cb(null, s3Key);
+    },
+  }),
+});
+
 /**
  * To delete a file from path
  * ex. https://vkjdev.s3.ap-south-1.amazonaws.com/vkjdev/newsandupdates/image/xyz.jpg
@@ -625,6 +657,7 @@ module.exports = {
   uploadInS3FileDownload,
   uploadCamDocsInS3,
   uploadReferenceImagesInS3,
+  uploadDesignFilesInS3,
   deleteFromBucket,
   deleteMultipleFromBucket,
   getS3Object,
