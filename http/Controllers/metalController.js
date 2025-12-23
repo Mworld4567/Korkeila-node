@@ -28,6 +28,7 @@ const metalController = () => {
 
                 const data = {
                     metal_name: req.body.metal_name.trim(),
+                    metal_code: req.body.metal_code ? req.body.metal_code : null,
                 };
 
                 const mydata = await Metal.create(data);
@@ -125,6 +126,7 @@ const metalController = () => {
 
                 const data = {
                     metal_name: req.body.metal_name.trim(),
+                    metal_code: req.body.metal_code,
                 };
 
                 await Metal.update(data, {
