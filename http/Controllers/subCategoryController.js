@@ -348,6 +348,29 @@ const subCategoryController = () => {
                 });
             }
         },
+        subCategoryListingForEcomHomePage: async (req, res) => {
+            try {
+                const subCategoryData = await SubCategory.findAll({
+                    attributes: ['id', 'sub_category_name'],
+                    where: {
+                        category_id: req.query.category_id,
+                    },
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: "Sub category listing for ecom home page fetched successfully",
+                    data: subCategoryData,
+                });
+            }
+            catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 module.exports = subCategoryController;

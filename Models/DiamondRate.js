@@ -1,6 +1,8 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
-
+const DiamondType = require("./DiamondType");
+const DiamondClarity = require("./DiamondClarity");
+const DiamondMaster = require("./DiamondMaster");
 const DiamondRate = sequelize.define(
     "diamond_rates",
     {
@@ -15,5 +17,9 @@ const DiamondRate = sequelize.define(
         timestamps: false,
     }
 );
+
+DiamondRate.belongsTo(DiamondType, { foreignKey: 'diamond_type_id', as: 'diamond_type' });
+DiamondRate.belongsTo(DiamondClarity, { foreignKey: 'clarity_id', as: 'clarity' });
+DiamondRate.belongsTo(DiamondMaster, { foreignKey: 'diamond_master_id', as: 'diamond_master' });
 
 module.exports = DiamondRate;

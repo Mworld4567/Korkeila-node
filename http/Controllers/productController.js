@@ -3,6 +3,8 @@ const Product = require("../../Models/Product");
 const Category = require("../../Models/Category");
 const SubCategory = require("../../Models/SubCategory");
 const StyleMaster = require("../../Models/StyleMaster");
+const ProductTranslation = require("../../Models/ProductTranslation");
+const sequelize = require("../../config/dbconfig");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
@@ -10,6 +12,7 @@ const { extractFilename, constructImageUrl } = require("../../helpers/imageHelpe
 const productController = () => {
     return {
         create: async (req, res) => {
+            const transaction = await sequelize.transaction();
             try {
 
                 // Validate required fields
@@ -34,6 +37,24 @@ const productController = () => {
                     });
                 }
 
+                // Check if product with same category_id, sub_category_id, and style_id already exists
+                const existingProduct = await Product.findOne({
+                    where: {
+                        category_id: parseInt(req.body.category_id),
+                        sub_category_id: parseInt(req.body.sub_category_id),
+                        style_id: parseInt(req.body.style_id),
+                    },
+                    transaction
+                });
+
+                if (existingProduct) {
+                    await transaction.rollback();
+                    return res.status(409).json({
+                        success: false,
+                        message: "Product with this category, sub-category, and style combination already exists",
+                    });
+                }
+
                 // Handle image - store only filename (last part) in database
                 let product_image = null;
                 if (req.file && req.file.key) {
@@ -42,27 +63,22 @@ const productController = () => {
                 } else if (req.body.image && req.body.image !== "") {
                     // Image provided as text (filename or URL) - extract only filename
                     product_image = extractFilename(req.body.image.trim());
-                } else {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please provide product image",
-                    });
                 }
 
                 // Get is_display value, default to 1 if not provided
                 const is_display = req.body.is_display !== undefined ? parseInt(req.body.is_display) : 1;
 
                 // Generate product_name from first letters of category_name, sub_category_name, and style_name
-                const categoryFirstLetter = req.body.category_name && req.body.category_name.trim().length > 0 
-                    ? req.body.category_name.trim().charAt(0).toUpperCase() 
-                    : '';
-                const subCategoryFirstLetter = req.body.sub_category_name && req.body.sub_category_name.trim().length > 0 
-                    ? req.body.sub_category_name.trim().charAt(0).toUpperCase() 
-                    : '';
-                const styleFirstLetter = req.body.style_name && req.body.style_name.trim().length > 0 
-                    ? req.body.style_name.trim().charAt(0).toUpperCase() 
-                    : '';
-                const product_name = categoryFirstLetter + subCategoryFirstLetter + styleFirstLetter;
+                // const categoryFirstLetter = req.body.category_name && req.body.category_name.trim().length > 0 
+                //     ? req.body.category_name.trim().charAt(0).toUpperCase() 
+                //     : '';
+                // const subCategoryFirstLetter = req.body.sub_category_name && req.body.sub_category_name.trim().length > 0 
+                //     ? req.body.sub_category_name.trim().charAt(0).toUpperCase() 
+                //     : '';
+                // const styleFirstLetter = req.body.style_name && req.body.style_name.trim().length > 0 
+                //     ? req.body.style_name.trim().charAt(0).toUpperCase() 
+                //     : '';
+                // const product_name = categoryFirstLetter + subCategoryFirstLetter + styleFirstLetter;
 
                 const data = {
                     category_id: parseInt(req.body.category_id),
@@ -72,16 +88,27 @@ const productController = () => {
                     style_id: parseInt(req.body.style_id),
                     style_name: req.body.style_name,
                     image: product_image, // Store only filename/key
-                    product_name: product_name,
                     is_display: is_display,
                 };
 
                 // Create product
-                const product = await Product.create(data);
+                const product = await Product.create(data, { transaction });
                 data.id = product.id;
-                
+
+                const product_name_array = [];
+                for (const language of req.body.product_name_array) {
+                    product_name_array.push({
+                        product_id: product.id,
+                        language_id: language.language_id,
+                        product_name: language.product_name,
+                    });
+                }
+               const product_translations = await ProductTranslation.bulkCreate(product_name_array, { transaction });
+               data.product_translations = product_translations;
                 // Construct full URL for response
                 data.image = constructImageUrl(data.image, 'product');
+
+                await transaction.commit();
 
                 return res.status(200).json({
                     success: true,
@@ -92,6 +119,7 @@ const productController = () => {
             } catch (error) {
                 console.log(error);
                 logError(error, req);
+                await transaction.rollback();
                 return res.status(500).json({
                     success: false,
                     message: "Internal server error"
@@ -100,6 +128,7 @@ const productController = () => {
         },
         read: async (req, res) => {
             try {
+                
                 const mydata = await Product.findAll({
                     include: [
                         {
@@ -378,13 +407,17 @@ const productController = () => {
         productDropdown: async (req, res) => {
             try {
                 const ProductData = await Product.findAll({
-                    attributes: ['id', 'product_name'],
+                    attributes: ['id', 'image'],
                     where: {
-                        [Op.and]: [
-                            { product_name: { [Op.ne]: null } },
-                            { product_name: { [Op.ne]: '' } }
-                        ]
-                    }
+                        is_display: 1
+                    },
+                    include: [
+                        {
+                            model: ProductTranslation,
+                            as: 'product_translations',
+                            attributes: ['id', 'product_name']
+                        },
+                    ]
                 });
 
                 return res.status(200).json({
@@ -393,6 +426,65 @@ const productController = () => {
                     data: ProductData,
                 });
                 
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        productListEcom: async (req, res) => {
+            try {
+
+                // Build where clause conditionally
+                const productWhere = {
+                    is_display: 1,
+                    category_id: req.query.category_id
+                };
+
+                // Only add sub_category_id filter if it's provided
+                if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
+                    productWhere.sub_category_id = req.query.sub_category_id;
+                }
+
+                // Only add style_id filter if it's provided
+                if (req.query.style_id !== undefined && req.query.style_id !== null && req.query.style_id !== '') {
+                    productWhere.style_id = req.query.style_id;
+                }
+
+                const productData = await ProductTranslation.findAll({
+                    attributes: ['id', 'product_name'],
+                    where: {
+                        language_id: req.query.language_id
+                    },
+                    include: [
+                        {
+                            model: Product,
+                            as: 'product',
+                            where: productWhere,
+                            attributes: ['id', 'image',"category_id", "sub_category_id", "style_id"]
+                        },
+                    ]
+                });
+
+
+                const dataWithUrls = productData.map(item => {
+                    return {
+                        id: item.product.id,
+                        product_name: item.product_name,
+                        image: constructImageUrl(item.product.image, 'product'),
+                        category_id: item.product.category_id,
+                        sub_category_id: item.product.sub_category_id,
+                        style_id: item.product.style_id
+                    };
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: "Product list fetched successfully",
+                    data: dataWithUrls,
+                });
             } catch (error) {
                 console.log(error);
                 logError(error, req);

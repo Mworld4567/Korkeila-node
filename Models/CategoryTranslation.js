@@ -1,5 +1,6 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
+const Category = require("./Category");
 
 const CategoryTranslation = sequelize.define(
     "category_translations",
@@ -14,4 +15,5 @@ const CategoryTranslation = sequelize.define(
     }
 );
 
+CategoryTranslation.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 module.exports = CategoryTranslation;

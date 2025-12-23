@@ -1,6 +1,7 @@
 const logError = require("../../logger/log");
 const CategoryMaster = require("../../Models/Category");
 const dateFunc = require("../../helpers/dateFunc");
+const CategoryTranslation = require("../../Models/CategoryTranslation");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
@@ -288,6 +289,43 @@ const categoryMasterController = () => {
                     success: true,
                     message: "Category dropdown fetched successfully",
                     data: categoryData,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        categoryListingForEcomHomePage: async (req, res) => {
+            try {
+                const categoryData = await CategoryTranslation.findAll({
+                    where: {
+                        language_id: req.query.language_id
+                    },
+                    include: [
+                        {
+                            model: CategoryMaster,
+                            as: 'category',
+                            attributes: ['id', 'category_name', 'image']
+                        }
+                    ]
+                });
+                
+                const data = categoryData.map(item => {
+                    return {
+                        id: item.category.id,
+                        category_name: item.category_name,
+                        image: constructImageUrl(item.category.image, 'categoryMaster')
+                    };
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Category listing for ecom home page fetched successfully",
+                    data: data,
                 });
             } catch (error) {
                 console.log(error);
