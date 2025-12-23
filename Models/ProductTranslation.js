@@ -1,5 +1,6 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
+const Language = require("./Language");
 // const Product = require("./Product");
 // const Language = require("./Language");
 const ProductTranslation = sequelize.define(
@@ -16,6 +17,7 @@ const ProductTranslation = sequelize.define(
 );
 
 // ProductTranslation.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
-// ProductTranslation.hasOne(Language, { foreignKey: 'language_id', as: 'language' });
+ProductTranslation.belongsTo(Language, { foreignKey: 'language_id', as: 'language' });
+
 module.exports = ProductTranslation;
 

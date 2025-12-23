@@ -16,6 +16,7 @@ const sequelize = require("../../config/dbconfig");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
+const Language = require("../../Models/Language");
 
 const productController = () => {
     return {
@@ -153,6 +154,18 @@ const productController = () => {
                             model: StyleMaster,
                             as: 'style',
                             attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id']
+                        },
+                        {
+                            model: ProductTranslation,
+                            as: 'product_translations',
+                            attributes: ['id', 'product_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name']
+                                }
+                            ]
                         }
                     ],
                     order: [['id', 'DESC']]
@@ -201,6 +214,18 @@ const productController = () => {
                             model: StyleMaster,
                             as: 'style',
                             attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id']
+                        },
+                        {
+                            model: ProductTranslation,
+                            as: 'product_translations',
+                            attributes: ['id', 'product_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name']
+                                }
+                            ]
                         }
                     ]
                 });
@@ -415,7 +440,7 @@ const productController = () => {
         productDropdown: async (req, res) => {
             try {
                 const ProductData = await Product.findAll({
-                    attributes: ['id', 'image'],
+                    // attributes: ['id', 'image'],
                     where: {
                         is_display: 1
                     },
@@ -423,7 +448,14 @@ const productController = () => {
                         {
                             model: ProductTranslation,
                             as: 'product_translations',
-                            attributes: ['id', 'product_name']
+                            attributes: ['id', 'product_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name']
+                                }
+                            ]
                         },
                     ]
                 });
