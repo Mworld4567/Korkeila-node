@@ -673,6 +673,7 @@ const designController = () => {
             try {
                 // Validate product_id
                 const productId = req.query.product_id || req.body.product_id;
+                const designId = req.query.design_id || req.body.design_id;
                 const metalId = req.query.metal_id || req.body.metal_id;
                 const karatId = req.query.karat_id || req.body.karat_id;
                 const diamondTypeId = req.query.diamond_type_id || req.body.diamond_type_id;
@@ -689,6 +690,11 @@ const designController = () => {
 
                 // Build where clause for design filtering
                 const designWhere = { product_id: parseInt(productId) };
+
+                // If design_id is provided, use that specific design
+                if (designId) {
+                    designWhere.id = parseInt(designId);
+                }
 
                 // If metal filters are provided, find matching metal_rate_id first
                 let filteredMetalRateId = null;
@@ -730,50 +736,137 @@ const designController = () => {
                 }
 
                 // Fetch design for the product
-                let design = await Designs.findOne({
-                    where: designWhere,
-                    include: [
-                        {
-                            model: MetalRateMaster,
-                            as: 'metal_rate',
-                            attributes: ['id', 'metal_id', 'karat_id', 'rate'],
-                            include: [
-                                { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
-                                { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
-                            ]
-                        },
-                        {
-                            model: DesignsDiamondDetails,
-                            as: 'diamond_details',
-                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
-                            include: [
-                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
-                                {
-                                    model: DiamondRate,
-                                    as: 'diamond_rate',
-                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
-                                    include: [
-                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            model: DesignsImages,
-                            as: 'images',
-                            attributes: ['id', 'image_name'],
-                        },
-                        {
-                            model: Product,
-                            as: 'product',
-                            include: [
-                                { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
-                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
-                                { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
-                            ]
+                let design = null;
+
+                if (designId) {
+                    // Fetch specific design by design_id
+                    design = await Designs.findOne({
+                        where: designWhere,
+                        include: [
+                            {
+                                model: MetalRateMaster,
+                                as: 'metal_rate',
+                                attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                                include: [
+                                    { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                                    { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                                ]
+                            },
+                            {
+                                model: DesignsDiamondDetails,
+                                as: 'diamond_details',
+                                attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                                include: [
+                                    { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                    {
+                                        model: DiamondRate,
+                                        as: 'diamond_rate',
+                                        attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                        include: [
+                                            { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                model: DesignsImages,
+                                as: 'images',
+                                attributes: ['id', 'image_name'],
+                            },
+                            {
+                                model: Product,
+                                as: 'product',
+                                include: [
+                                    { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                                    { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                    { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                                ]
+                            }
+                        ]
+                    });
+                } else {
+                    // Find all designs for the product and select the one with lowest price
+                    const allDesigns = await Designs.findAll({
+                        where: { product_id: parseInt(productId) },
+                        include: [
+                            {
+                                model: MetalRateMaster,
+                                as: 'metal_rate',
+                                attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                                include: [
+                                    { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                                    { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                                ]
+                            },
+                            {
+                                model: DesignsDiamondDetails,
+                                as: 'diamond_details',
+                                attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                                include: [
+                                    { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                    {
+                                        model: DiamondRate,
+                                        as: 'diamond_rate',
+                                        attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                        include: [
+                                            { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                model: DesignsImages,
+                                as: 'images',
+                                attributes: ['id', 'image_name'],
+                            },
+                            {
+                                model: Product,
+                                as: 'product',
+                                include: [
+                                    { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                                    { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                    { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                                ]
+                            }
+                        ]
+                    });
+
+                    // Calculate price for each design and find the lowest
+                    let lowestPriceDesign = null;
+                    let lowestPrice = Infinity;
+
+                    for (const d of allDesigns) {
+                        // Metal cost calculation
+                        const metalWeight = parseFloat(d.metal_weight) || 0;
+                        const ratePerGram = parseFloat(d.metal_rate?.rate) || 0;
+                        const metalCost = metalWeight * ratePerGram;
+
+                        // Diamond cost calculation
+                        let diamondCost = 0;
+                        if (d.diamond_details && d.diamond_details.length > 0) {
+                            d.diamond_details.forEach(diamondDetail => {
+                                const diamondPieces = parseInt(diamondDetail.pcs) || 0;
+                                const diamondSize = parseFloat(diamondDetail.diamond_rate?.diamond_master?.carat) || 0;
+                                const diamondRatePerCarat = parseFloat(diamondDetail.diamond_rate?.rate) || 0;
+                                diamondCost += diamondPieces * diamondSize * diamondRatePerCarat;
+                            });
                         }
-                    ]
-                });
+
+                        // Markup
+                        const markUpValue = d.mark_up != null ? parseFloat(d.mark_up) : 1;
+                        const markup = markUpValue > 0 ? markUpValue : 1;
+
+                        // Total price
+                        const totalPrice = (metalCost + diamondCost) * markup;
+
+                        if (totalPrice < lowestPrice) {
+                            lowestPrice = totalPrice;
+                            lowestPriceDesign = d;
+                        }
+                    }
+
+                    design = lowestPriceDesign;
+                }
 
                 if (!design) {
                     return res.status(404).json({
