@@ -12,4 +12,7 @@ Router.put("/update/:id", authMiddleware, transactionMiddleware(subCategoryContr
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(subCategoryController().delete));
 Router.get("/dropdown", authMiddleware, subCategoryController().subCategoryDropdown);
 
+//ecom home page
+Router.get("/home-page", subCategoryController().subCategoryListingForEcomHomePage);
+
 module.exports = Router;

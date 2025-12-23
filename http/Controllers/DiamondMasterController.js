@@ -202,6 +202,25 @@ const diamondMasterController = () => {
                 });
             }
         },
+        diamondCaratDropdownEcom: async (req, res) => {
+            try {
+                const diamondCaratData = await DiamondMaster.findAll({
+                    attributes: ['id', 'carat'],
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: "Diamond carat dropdown fetched successfully",
+                    data: diamondCaratData,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 

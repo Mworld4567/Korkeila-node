@@ -9,5 +9,6 @@ Router.get("/read", authMiddleware, diamondRateController().read);
 Router.get("/readOne/:id", authMiddleware, diamondRateController().readOne);
 Router.put("/update/:id", authMiddleware, transactionMiddleware(diamondRateController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(diamondRateController().delete));
+Router.get("/dropdown", authMiddleware, diamondRateController().diamondRateDropdown);
 
 module.exports = Router;

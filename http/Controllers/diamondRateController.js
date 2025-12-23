@@ -336,7 +336,7 @@ const diamondRateController = () => {
         diamondRateDropdown: async (req, res) => {
             try {
                 const mydata = await DiamondRate.findAll({
-                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id'],
+                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
                     order: [['id', 'ASC']],
                     include: [
                         {
@@ -360,7 +360,8 @@ const diamondRateController = () => {
                 const data = mydata.map((x) => {
                     return {
                         id: x.dataValues.id,
-                        name: x.dataValues.diamond_type.dataValues.clarity + " " + x.dataValues.diamond_type.dataValues.type_code + " " + x.dataValues.clarity.dataValues.clarity,
+                        name: x.dataValues.diamond_master.dataValues.carat + " " + x.dataValues.diamond_type.dataValues.type_name + " " + x.dataValues.clarity.dataValues.clarity,
+                        rate: x.dataValues.rate + " €",
                     };
                 });
 

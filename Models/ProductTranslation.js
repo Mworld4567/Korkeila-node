@@ -1,0 +1,21 @@
+const Sequelize = require("sequelize");
+const sequelize = require("../config/dbconfig");
+// const Product = require("./Product");
+// const Language = require("./Language");
+const ProductTranslation = sequelize.define(
+    "product_translations",
+    {
+        id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, allowNull: false, primaryKey: true },
+        product_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+        language_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+        product_name: { type: Sequelize.STRING(255), allowNull: false },
+    },
+    {
+        timestamps: false,
+    }
+);
+
+// ProductTranslation.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+// ProductTranslation.hasOne(Language, { foreignKey: 'language_id', as: 'language' });
+module.exports = ProductTranslation;
+

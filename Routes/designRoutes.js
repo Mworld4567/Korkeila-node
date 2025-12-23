@@ -8,5 +8,8 @@ const transactionMiddleware = require("../http/middlewares/transactionMiddleware
 Router.post("/create", authMiddleware, transactionMiddleware(designController().create));
 Router.get("/read", authMiddleware, designController().read);
 
+//ecom endpoint
+Router.get("/variant-details-ecom", designController().variantDetailsForEcom);
+
 module.exports = Router;
 

@@ -11,5 +11,6 @@ Router.get("/readOne/:id", authMiddleware, productController().readOne);
 Router.put("/update/:id", authMiddleware, uploadInS3Image.single("image"), transactionMiddleware(productController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(productController().delete));
 Router.get("/dropdown", authMiddleware, productController().productDropdown);
+Router.get("/listEcom", productController().productListEcom);
 
 module.exports = Router;
