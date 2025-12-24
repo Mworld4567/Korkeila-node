@@ -709,7 +709,7 @@ const productController = () => {
                         style_id: item.product.style_id,
                         design_id: lowestPriceDesign ? lowestPriceDesign.design_id : null,
                         design_variant_name: lowestPriceDesign ? lowestPriceDesign.design.design_variant_name : null,
-                        total_price: lowestPriceDesign ? parseFloat(lowestPriceDesign.totalPrice.toFixed(2)) + " €" : null,
+                        total_price: lowestPriceDesign ? "€ " + parseFloat(lowestPriceDesign.totalPrice.toFixed(2)) : null,
                         metal_rate_name: lowestPriceDesign && lowestPriceDesign.design.metal_rate ? 
                             `${lowestPriceDesign.design.metal_rate.metal?.metal_code || ""} - ${lowestPriceDesign.design.metal_rate.karat?.karat || ""}` : null
                     };

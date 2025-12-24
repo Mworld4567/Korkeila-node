@@ -16,7 +16,6 @@ const Designs = sequelize.define(
         metal_rate_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, },
         metal_weight: { type: Sequelize.FLOAT, allowNull: false, },
         mark_up: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
-        description: { type: Sequelize.TEXT, allowNull: true },
         is_filter_available: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
     },
     {
