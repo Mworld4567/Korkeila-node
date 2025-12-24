@@ -1457,6 +1457,14 @@ const designController = () => {
                                     { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
                                     { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
                                 ]
+                            },
+                            {
+                                model: DesignTranslation,
+                                as: 'design_translations',
+                                attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                                include: [
+                                    { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                                ]
                             }
                         ]
                     });
@@ -1502,6 +1510,14 @@ const designController = () => {
                                     { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
                                     { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
                                     { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                                ]
+                            },
+                            {
+                                model: DesignTranslation,
+                                as: 'design_translations',
+                                attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                                include: [
+                                    { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
                                 ]
                             }
                         ]
