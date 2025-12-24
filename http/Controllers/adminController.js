@@ -220,17 +220,17 @@ const adminController = () => {
                 }
 
                 const data = {
-                    email: req.body.email.trim(),
-                    password: req.body.password.trim(),
+                    email: req.body.email,
+                    password: req.body.password,
                     status: req.body.status,
                 };
 
                 if (req.body.username && req.body.username !== "") {
-                    data.username = req.body.username.trim();
+                    data.username = req.body.username;
                 }
                 
                 if (req.body.mobile_number && req.body.mobile_number !== "") {
-                    data.mobile_number = req.body.mobile_number.trim();
+                    data.mobile_number = req.body.mobile_number;
                 }
 
                 if (!req.body.password || req.body.password === "") {
