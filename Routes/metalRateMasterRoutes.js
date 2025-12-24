@@ -9,4 +9,5 @@ Router.get("/karat-read", authMiddleware, metalRateMasterController().karatRead)
 Router.get("/dropdown", authMiddleware, metalRateMasterController().metalRateMasterDropdown);
 Router.put("/update/:id", authMiddleware, metalRateMasterController().update);
 Router.delete("/delete/:id", authMiddleware, metalRateMasterController().delete);
+Router.get("/readOne/:id", authMiddleware, metalRateMasterController().readOne);
 module.exports = Router; 
