@@ -13,22 +13,39 @@ const diamondMasterController = () => {
                     });
                 }
 
-                if (req.body.size_from === undefined || req.body.size_from === null) {
+                const caratValue = parseFloat(req.body.carat) || 0;
+
+                // Check if diamond master with same carat already exists
+                const existingDiamond = await DiamondMaster.findOne({
+                    where: {
+                        carat: caratValue,
+                        deleted_at: null
+                    }
+                });
+
+                if (existingDiamond) {
                     return res.status(409).json({
                         success: false,
-                        message: "Please enter size from",
+                        message: "Diamond master with this carat value already exists",
                     });
                 }
 
-                if (req.body.size_to === undefined || req.body.size_to === null) {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please enter size to",
-                    });
-                }
+                // if (req.body.size_from === undefined || req.body.size_from === null) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter size from",
+                //     });
+                // }
+
+                // if (req.body.size_to === undefined || req.body.size_to === null) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter size to",
+                //     });
+                // }
 
                 const data = {
-                    carat: parseFloat(req.body.carat) || 0,
+                    carat: caratValue,
                     size_from: parseFloat(req.body.size_from) || 0,
                     size_to: parseFloat(req.body.size_to) || 0,
                 };
@@ -56,7 +73,7 @@ const diamondMasterController = () => {
                     where: {
                         deleted_at: null
                     },
-                    order: [['id', 'DESC']]
+                    attributes: ['id', 'carat'],
                 });
 
                 return res.status(200).json({
@@ -79,7 +96,8 @@ const diamondMasterController = () => {
                     where: {
                         id: req.params.id,
                         deleted_at: null
-                    }
+                    },
+                    attributes: ['id', 'carat'],
                 });
 
                 if (!mydata) {
@@ -126,19 +144,19 @@ const diamondMasterController = () => {
                     });
                 }
 
-                if (req.body.size_from === undefined || req.body.size_from === null) {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please enter size from",
-                    });
-                }
+                // if (req.body.size_from === undefined || req.body.size_from === null) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter size from",
+                //     });
+                // }
 
-                if (req.body.size_to === undefined || req.body.size_to === null) {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please enter size to",
-                    });
-                }
+                // if (req.body.size_to === undefined || req.body.size_to === null) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter size to",
+                //     });
+                // }
 
                 const data = {
                     carat: parseFloat(req.body.carat) || 0,
