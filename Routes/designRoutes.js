@@ -10,8 +10,9 @@ const { uploadDesignFilesInS3 } = require("../http/middlewares/awsS3Middleware")
 Router.post("/create", authMiddleware, uploadDesignFilesInS3.array('images'), transactionMiddleware(designController().create));
 Router.get("/read", authMiddleware, designController().read);
 
-//ecom endpoint
+//ecom endpoints
 Router.get("/variant-details-ecom", designController().variantDetailsForEcom);
+Router.get("/filter-dropdowns-ecom", designController().filterDropdownsEcom);
 
 module.exports = Router;
 

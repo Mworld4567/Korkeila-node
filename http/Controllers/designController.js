@@ -17,6 +17,8 @@ const DiamondType = require("../../Models/DiamondType");
 const DiamondClarity = require("../../Models/DiamondClarity");
 const Category = require("../../Models/Category");
 const ProductTranslation = require("../../Models/ProductTranslation");
+const DiamondTypeTranslation = require("../../Models/DiamondTypeTranslation");
+const MetalTranslation = require("../../Models/MetalTranslation");
 const { Op } = require("sequelize");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 
@@ -1045,6 +1047,164 @@ const designController = () => {
                     success: true,
                     message: "Design variant details fetched successfully",
                     data: designData
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
+        filterDropdownsEcom: async (req, res) => {
+            try {
+                const languageId = req.query.language_id || req.body.language_id;
+
+                // Fetch all dropdown data in parallel
+                const [
+                    cutMasters,
+                    diamondTypes,
+                    diamondClarities,
+                    diamondCarats,
+                    metals,
+                    karats
+                ] = await Promise.all([
+                    // Diamond Cut options (ROUND, PEAR, CUSHION, etc.)
+                    CutMaster.findAll({
+                        attributes: ['id', 'cut_name', 'cut_code', 'cut_image'],
+                        order: [['id', 'ASC']]
+                    }),
+                    // Diamond Type/Quality (NATURAL BRILLIANT, LAB GROWN, etc.)
+                    DiamondType.findAll({
+                        attributes: ['id', 'type_name', 'type_code'],
+                        order: [['id', 'ASC']]
+                    }),
+                    // Diamond Clarity (VS, VVS, IF, FVS, etc.)
+                    DiamondClarity.findAll({
+                        attributes: ['id', 'clarity'],
+                        order: [['id', 'ASC']]
+                    }),
+                    // Diamond Carat weights (0.05, 0.10, 0.20, etc.)
+                    DiamondMaster.findAll({
+                        attributes: ['id', 'carat'],
+                        where: {
+                            deleted_at: null
+                        },
+                        order: [['carat', 'ASC']]
+                    }),
+                    // Metal Colors (WHITE, YELLOW, ROSE, PLATINUM)
+                    Metal.findAll({
+                        attributes: ['id', 'metal_name', 'metal_code'],
+                        where: {
+                            deleted_at: null
+                        },
+                        order: [['id', 'ASC']]
+                    }),
+                    // Metal Karat types (14K, 18K, 22K, etc.)
+                    Karat.findAll({
+                        attributes: ['id', 'karat'],
+                        order: [['id', 'ASC']]
+                    })
+                ]);
+
+                // Fetch translations if language_id is provided
+                let diamondTypeTranslationsMap = new Map();
+                let metalTranslationsMap = new Map();
+
+                if (languageId) {
+                    const [
+                        diamondTypeTranslations,
+                        metalTranslations
+                    ] = await Promise.all([
+                        // Fetch diamond type translations
+                        DiamondTypeTranslation.findAll({
+                            where: {
+                                language_id: parseInt(languageId)
+                            },
+                            attributes: ['diamond_type_id', 'diamond_type_name']
+                        }),
+                        // Fetch metal translations
+                        MetalTranslation.findAll({
+                            where: {
+                                language_id: parseInt(languageId)
+                            },
+                            attributes: ['metal_id', 'metal_name']
+                        })
+                    ]);
+
+                    // Create maps for quick lookup
+                    diamondTypeTranslations.forEach(trans => {
+                        diamondTypeTranslationsMap.set(trans.diamond_type_id, trans.diamond_type_name);
+                    });
+
+                    metalTranslations.forEach(trans => {
+                        metalTranslationsMap.set(trans.metal_id, trans.metal_name);
+                    });
+                }
+
+                // Standard ring sizes (since there's no model for this)
+                const ringSizes = [
+                    { id: 1, size: "US 4", value: "4" },
+                    { id: 2, size: "US 4.5", value: "4.5" },
+                    { id: 3, size: "US 5", value: "5" },
+                    { id: 4, size: "US 5.5", value: "5.5" },
+                    { id: 5, size: "US 6", value: "6" },
+                    { id: 6, size: "US 6.5", value: "6.5" },
+                    { id: 7, size: "US 7", value: "7" },
+                    { id: 8, size: "US 7.5", value: "7.5" },
+                    { id: 9, size: "US 8", value: "8" },
+                    { id: 10, size: "US 8.5", value: "8.5" },
+                    { id: 11, size: "US 9", value: "9" },
+                    { id: 12, size: "US 9.5", value: "9.5" },
+                    { id: 13, size: "US 10", value: "10" },
+                    { id: 14, size: "US 10.5", value: "10.5" },
+                    { id: 15, size: "US 11", value: "11" },
+                    { id: 16, size: "US 11.5", value: "11.5" },
+                    { id: 17, size: "US 12", value: "12" }
+                ];
+
+                // Format response with translations (fallback to default if translation not available)
+                const responseData = {
+                    cuts: cutMasters.map(cut => ({
+                        id: cut.id,
+                        name: cut.cut_name,
+                        code: cut.cut_code,
+                        image: cut.cut_image
+                    })),
+                    diamond_types: diamondTypes.map(type => ({
+                        id: type.id,
+                        name: diamondTypeTranslationsMap.has(type.id)
+                            ? diamondTypeTranslationsMap.get(type.id)
+                            : type.type_name,
+                        code: type.type_code
+                    })),
+                    clarities: diamondClarities.map(clarity => ({
+                        id: clarity.id,
+                        name: clarity.clarity
+                    })),
+                    carats: diamondCarats.map(carat => ({
+                        id: carat.id,
+                        carat: parseFloat(carat.carat) || 0
+                    })),
+                    metals: metals.map(metal => ({
+                        id: metal.id,
+                        name: metalTranslationsMap.has(metal.id)
+                            ? metalTranslationsMap.get(metal.id)
+                            : metal.metal_name,
+                        code: metal.metal_code
+                    })),
+                    karats: karats.map(karat => ({
+                        id: karat.id,
+                        karat: karat.karat
+                    })),
+                    ring_sizes: ringSizes
+                };
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Filter dropdowns fetched successfully",
+                    data: responseData
                 });
             } catch (error) {
                 console.log(error);
