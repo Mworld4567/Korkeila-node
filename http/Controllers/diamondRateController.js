@@ -361,7 +361,7 @@ const diamondRateController = () => {
                     return {
                         id: x.dataValues.id,
                         name: x.dataValues.diamond_master.dataValues.carat + " " + x.dataValues.diamond_type.dataValues.type_name + " " + x.dataValues.clarity.dataValues.clarity,
-                        rate: x.dataValues.rate + " €",
+                        rate: "€ " + x.dataValues.rate,
                     };
                 });
 
