@@ -338,6 +338,48 @@ const metalRateMasterController = () => {
                 });
             }
         },
+        readOne: async (req, res) => {
+            try {
+
+                const mydata = await MetalRateMaster.findOne({
+                    where: {
+                        id: req.params.id,
+                    },
+                    include: [
+                        {
+                            model: Karat,
+                            as: 'karat',
+                            attributes: ['id', 'karat'],
+                        },
+                        {
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }
+                    ],
+                });
+
+                if (!mydata) {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Metal rate master not found",
+                    });
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Metal rate master fetched successfully",
+                    data: mydata,
+                });
+            } catch (error) {
+                console.log(error)
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
     };
 };  
 module.exports = metalRateMasterController;
