@@ -2,6 +2,7 @@ const logError = require("../../logger/log");
 const MetalRateMaster = require("../../Models/MetalRateMaster");
 const Karat = require("../../Models/Karat");
 const Metal = require("../../Models/Metal");
+const { Op } = require("sequelize");
 const metalRateMasterController = () => {
     return {
         create: async (req, res) => {
@@ -38,39 +39,33 @@ const metalRateMasterController = () => {
 
                 const date = req.body.date ? new Date(req.body.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
-                // Check if record exists with same karat_id, metal_id and date
+                // Check if record exists with same karat_id and metal_id
                 const existingRecord = await MetalRateMaster.findOne({
                     where: {
                         karat_id: req.body.karat_id,
                         metal_id: req.body.metal_id,
-                        date: date
                     }
                 });
 
-                let mydata;
-                let message;
                 if (existingRecord) {
-                    // Update existing record
-                    await existingRecord.update({
-                        rate: parseFloat(req.body.rate || 0)
+                    return res.status(409).json({
+                        success: false,
+                        message: "Metal rate master with this karat and metal already exists",
                     });
-                    mydata = existingRecord;
-                    message = "Metal rate master updated successfully";
-                } else {
-                    // Create new record
-                    const data = {
-                        karat_id: req.body.karat_id,
-                        metal_id: req.body.metal_id,
-                        rate: parseFloat(req.body.rate || 0),
-                        date: date,
-                    };
-                    mydata = await MetalRateMaster.create(data);
-                    message = "Metal rate master created successfully";
                 }
+
+                // Create new record
+                const data = {
+                    karat_id: req.body.karat_id,
+                    metal_id: req.body.metal_id,
+                    rate: parseFloat(req.body.rate || 0),
+                    // date: date,
+                };
+                const mydata = await MetalRateMaster.create(data);
 
                 return res.status(200).json({
                     success: true,
-                    message: message,
+                    message: "Metal rate master created successfully",
                     data: mydata,
                 });
 
@@ -110,7 +105,7 @@ const metalRateMasterController = () => {
                         metal_name: x.dataValues.metal ? x.dataValues.metal.dataValues.metal_name : null,
                         karat: x.dataValues.karat ? x.dataValues.karat.dataValues.karat : null,
                         rate: x.dataValues.rate,
-                        date: x.dataValues.date,
+                        // date: x.dataValues.date,
                     };
                 });
 
@@ -200,6 +195,142 @@ const metalRateMasterController = () => {
                 });
             } catch (error) {
                 console.log(error)
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        update: async (req, res) => {
+            try {
+                const metalRateData = await MetalRateMaster.findByPk(req.params.id);
+                if (!metalRateData) {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Metal rate master not found",
+                    });
+                }
+ 
+                if (!req.body.karat_id || req.body.karat_id === "") {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Please enter karat id",
+                    });
+                }
+ 
+                if (!req.body.metal_id || req.body.metal_id === "") {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Please enter metal id",
+                    });
+                }
+ 
+                const karat = await Karat.findByPk(req.body.karat_id);
+                if (!karat) {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Karat not found",
+                    });
+                }
+ 
+                const metal = await Metal.findByPk(req.body.metal_id);
+                if (!metal) {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Metal not found",
+                    });
+                }
+ 
+                // const date = req.body.date ? new Date(req.body.date).toISOString().split('T')[0] : metalRateData.date;
+ 
+                // Check if record exists with same karat_id, metal_id and date (excluding current record)
+                const existingRecord = await MetalRateMaster.findOne({
+                    where: {
+                        karat_id: req.body.karat_id,
+                        metal_id: req.body.metal_id,
+                        // date: date,
+                        id: { [Op.ne]: parseInt(req.params.id) }
+                    }
+                });
+ 
+                if (existingRecord) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Metal rate master with this karat and metal already exists",
+                    });
+                }
+ 
+                const data = {
+                    karat_id: req.body.karat_id,
+                    metal_id: req.body.metal_id,
+                    rate: parseFloat(req.body.rate || 0),
+                    // date: date,
+                };
+ 
+                await MetalRateMaster.update(data, {
+                    where: { id: req.params.id }
+                });
+ 
+                const updatedData = await MetalRateMaster.findByPk(req.params.id, {
+                    include: [
+                        {
+                            model: Karat,
+                            as: 'karat',
+                            attributes: ['id', 'karat'],
+                        },
+                        {
+                            model: Metal,
+                            as: 'metal',
+                            attributes: ['id', 'metal_name']
+                        }
+                    ]
+                });
+ 
+                const responseData = {
+                    id: updatedData.dataValues.id,
+                    karat_id: updatedData.dataValues.karat ? updatedData.dataValues.karat.dataValues.id : null,
+                    metal_id: updatedData.dataValues.metal ? updatedData.dataValues.metal.dataValues.id : null,
+                    metal_name: updatedData.dataValues.metal ? updatedData.dataValues.metal.dataValues.metal_name : null,
+                    karat: updatedData.dataValues.karat ? updatedData.dataValues.karat.dataValues.karat : null,
+                    rate: updatedData.dataValues.rate,
+                    // date: updatedData.dataValues.date,
+                };
+ 
+                return res.status(200).json({
+                    success: true,
+                    message: "Metal rate master updated successfully",
+                    data: responseData,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        delete: async (req, res) => {
+            try {
+                const metalRateData = await MetalRateMaster.findByPk(req.params.id);
+                if (!metalRateData) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Metal rate master not found",
+                    });
+                }
+
+                await MetalRateMaster.destroy({
+                    where: { id: req.params.id }
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Metal rate master deleted successfully",
+                });
+            } catch (error) {
+                console.log(error);
                 logError(error, req);
                 return res.status(500).json({
                     success: false,
