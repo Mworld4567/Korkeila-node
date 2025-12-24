@@ -19,6 +19,7 @@ const Category = require("../../Models/Category");
 const ProductTranslation = require("../../Models/ProductTranslation");
 const DiamondTypeTranslation = require("../../Models/DiamondTypeTranslation");
 const MetalTranslation = require("../../Models/MetalTranslation");
+const DesignTranslation = require("../../Models/DesignTranslation");
 const { Op } = require("sequelize");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 
@@ -275,7 +276,82 @@ const designController = () => {
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
                     description: req.body.description || null,
+                    is_filter_available: req.body.diamond_design_detail.length > 1 ? 0 : 1,
                 };
+
+                // Check for duplicate design with same parameters
+                const existingDesigns = await Designs.findAll({
+                    where: {
+                        product_id: designData.product_id,
+                        design_variant_name: designData.design_variant_name,
+                        metal_rate_id: designData.metal_rate_id,
+                        metal_weight: designData.metal_weight,
+                        mark_up: designData.mark_up,
+                        description: designData.description,
+                    },
+                    include: [{
+                        model: DesignsDiamondDetails,
+                        as: 'diamond_details',
+                        attributes: ['cut_master_id', 'diamond_rate_id', 'pcs']
+                    }],
+                    transaction
+                });
+
+                // Check if any existing design has matching diamond details
+                for (const existingDesign of existingDesigns) {
+                    const existingDiamondDetails = existingDesign.diamond_details || [];
+
+                    // Check if the number of diamond details matches
+                    if (existingDiamondDetails.length !== req.body.diamond_design_detail.length) {
+                        continue;
+                    }
+
+                    // Sort both arrays for comparison
+                    const sortedExisting = existingDiamondDetails
+                        .map(d => ({
+                            cut_id: d.cut_master_id,
+                            diamond_rate_id: d.diamond_rate_id,
+                            pcs: d.pcs
+                        }))
+                        .sort((a, b) => {
+                            if (a.cut_id !== b.cut_id) return a.cut_id - b.cut_id;
+                            if (a.diamond_rate_id !== b.diamond_rate_id) return a.diamond_rate_id - b.diamond_rate_id;
+                            return a.pcs - b.pcs;
+                        });
+
+                    const sortedNew = req.body.diamond_design_detail
+                        .map(d => ({
+                            cut_id: parseInt(d.cut_id),
+                            diamond_rate_id: parseInt(d.diamond_rate_id),
+                            pcs: parseInt(d.pcs) || 0
+                        }))
+                        .sort((a, b) => {
+                            if (a.cut_id !== b.cut_id) return a.cut_id - b.cut_id;
+                            if (a.diamond_rate_id !== b.diamond_rate_id) return a.diamond_rate_id - b.diamond_rate_id;
+                            return a.pcs - b.pcs;
+                        });
+
+                    // Compare each diamond detail
+                    let allMatch = true;
+                    for (let i = 0; i < sortedExisting.length; i++) {
+                        if (
+                            sortedExisting[i].cut_id !== sortedNew[i].cut_id ||
+                            sortedExisting[i].diamond_rate_id !== sortedNew[i].diamond_rate_id ||
+                            sortedExisting[i].pcs !== sortedNew[i].pcs
+                        ) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+
+                    // If all parameters match, return error
+                    if (allMatch) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "A design with the same parameters already exists",
+                        });
+                    }
+                }
 
                 // Create design
                 const design = await Designs.create(designData, { transaction });
@@ -289,6 +365,43 @@ const designController = () => {
                 }));
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
+
+                // Handle translations - create design translations if design_name_array is provided
+                let designTranslations = [];
+                if (req.body.design_name_array) {
+                    let designNameArray = req.body.design_name_array;
+
+                    // Parse design_name_array if it's a JSON string (when sent as form-data)
+                    if (typeof designNameArray === 'string') {
+                        try {
+                            designNameArray = JSON.parse(designNameArray);
+                        } catch (error) {
+                            return res.status(401).json({
+                                success: false,
+                                message: "Invalid design name array format",
+                            });
+                        }
+                    }
+
+                    // Handle both array format and object format (from form-data bracket notation)
+                    if (!Array.isArray(designNameArray) && typeof designNameArray === 'object') {
+                        // Convert object with numeric keys to array
+                        designNameArray = Object.keys(designNameArray)
+                            .sort((a, b) => parseInt(a) - parseInt(b))
+                            .map(key => designNameArray[key]);
+                    }
+
+                    if (Array.isArray(designNameArray) && designNameArray.length > 0) {
+                        const translationRecords = designNameArray.map(item => ({
+                            design_id: design.id,
+                            language_id: parseInt(item.language_id),
+                            design_variant_name: item.product_name ? item.product_name.trim() : "",
+                            description: item.description ? item.description.trim() : null,
+                        }));
+
+                        designTranslations = await DesignTranslation.bulkCreate(translationRecords, { transaction });
+                    }
+                }
 
                 // Handle file uploads - save to DesignsImages table
                 const uploadedImages = [];
@@ -328,6 +441,12 @@ const designController = () => {
                         pcs: detail.pcs,
                     })),
                     images: uploadedImages,
+                    translations: designTranslations.map(trans => ({
+                        id: trans.id,
+                        language_id: trans.language_id,
+                        design_variant_name: trans.design_variant_name,
+                        description: trans.description,
+                    })),
                 };
 
                 return res.status(200).json({
