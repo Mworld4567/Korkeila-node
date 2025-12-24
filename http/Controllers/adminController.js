@@ -211,7 +211,7 @@ const adminController = () => {
             const transaction = req.transaction || null;
             try {
 
-                const userData = await Admin.findByPk(req.params.id, { transaction });
+                const userData = await Admin.findByPk(req.params.id, { where: { deleted_at: null }, transaction });
                 if (!userData) {
                     return res.status(409).json({
                         success: true,
