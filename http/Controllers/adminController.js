@@ -44,7 +44,7 @@ const adminController = () => {
                     });
                 }
 
-                const existingAdmin = await Admin.findOne({ where: { email: req.body.email }, transaction });
+                const existingAdmin = await Admin.findOne({ where: { email: req.body.email, deleted_at: null }, transaction });
                 if (existingAdmin) {
                     return res.status(409).json({
                         success: false,
