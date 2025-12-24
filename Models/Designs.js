@@ -4,6 +4,7 @@ const MetalRateMaster = require("./MetalRateMaster");
 const DesignsDiamondDetails = require("./DesignsDiamondDetails");
 const Product = require("./Product");
 const DesignsImages = require("./DesignsImages");
+const DesignTranslation = require("./DesignTranslation");
 const Designs = sequelize.define(
     "designs",
     {
@@ -16,7 +17,7 @@ const Designs = sequelize.define(
         metal_weight: { type: Sequelize.FLOAT, allowNull: false, },
         mark_up: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
         description: { type: Sequelize.TEXT, allowNull: true },
-        // is_filter_available: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
+        is_filter_available: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
     },
     {
         timestamps: false,
@@ -27,4 +28,5 @@ Designs.belongsTo(MetalRateMaster, { foreignKey: 'metal_rate_id', as: 'metal_rat
 Designs.hasMany(DesignsDiamondDetails, { foreignKey: 'design_id', as: 'diamond_details' });
 Designs.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 Designs.hasMany(DesignsImages, { foreignKey: 'design_id', as: 'images' });
+Designs.hasMany(DesignTranslation, { foreignKey: 'design_id', as: 'design_translations' });
 module.exports = Designs;
