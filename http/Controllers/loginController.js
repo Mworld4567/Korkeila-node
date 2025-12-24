@@ -46,7 +46,7 @@ module.exports = {
                     });
                 }
                 const { email, password } = req.body;
-                let user = await Admin.findOne({ where: { email } });
+                let user = await Admin.findOne({ where: { email: email, deleted_at: null } });
                 if (!user) {
                     return res.status(409).json({
                         success: false,
