@@ -22,6 +22,7 @@ const MetalTranslation = require("../../Models/MetalTranslation");
 const DesignTranslation = require("../../Models/DesignTranslation");
 const { Op } = require("sequelize");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
+const Language = require("../../Models/Language");
 
 const designController = () => {
     return {
