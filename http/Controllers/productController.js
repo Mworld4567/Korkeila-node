@@ -12,6 +12,8 @@ const DiamondRate = require("../../Models/DiamondRate");
 const DiamondMaster = require("../../Models/DiamondMaster");
 const Metal = require("../../Models/Metal");
 const Karat = require("../../Models/Karat");
+const CutMaster = require("../../Models/CutMaster");
+const DesignTranslation = require("../../Models/DesignTranslation");
 const sequelize = require("../../config/dbconfig");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
@@ -588,7 +590,7 @@ const productController = () => {
                     });
                 }
 
-                // Fetch all designs for these products
+                // Fetch all designs for these products with full details
                 const allDesigns = await Designs.findAll({
                     where: {
                         product_id: { [Op.in]: filteredProductIds }
@@ -608,6 +610,7 @@ const productController = () => {
                             as: 'diamond_details',
                             attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
                             include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
                                 {
                                     model: DiamondRate,
                                     as: 'diamond_rate',
@@ -621,8 +624,26 @@ const productController = () => {
                         {
                             model: DesignsImages,
                             as: 'images',
-                            attributes: ['id', 'image_name'],
-                            limit: 1 // Get only first image for listing
+                            attributes: ['id', 'image_name']
+                        },
+                        {
+                            model: Product,
+                            as: 'product',
+                            include: [
+                                { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                            ]
+                        },
+                        {
+                            model: DesignTranslation,
+                            as: 'design_translations',
+                            attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                            where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                            required: false,
+                            include: [
+                                { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                            ]
                         }
                     ]
                 });
@@ -689,16 +710,54 @@ const productController = () => {
                     }
                 });
 
-                // Build response with lowest priced variant for each product
+                // Build response with lowest priced variant for each product, including all details
                 const dataWithUrls = productData.map(item => {
                     const productId = item.product.id;
                     const lowestPriceDesign = lowestPriceByProduct.get(productId);
                     
+                    if (!lowestPriceDesign) {
+                        return {
+                            id: productId,
+                            product_name: item.product_name,
+                            image: constructImageUrl(item.product.image, 'product'),
+                            category_id: item.product.category_id,
+                            sub_category_id: item.product.sub_category_id,
+                            style_id: item.product.style_id,
+                            design: null,
+                            total_price: null
+                        };
+                    }
+
+                    // Convert design to JSON to add computed fields
+                    const designData = lowestPriceDesign.design.toJSON ? lowestPriceDesign.design.toJSON() : lowestPriceDesign.design;
+
+                    // Construct full image URLs for all design images
+                    if (designData.images && Array.isArray(designData.images)) {
+                        designData.images = designData.images.map(img => ({
+                            id: img.id,
+                            image_name: img.image_name,
+                            image_url: constructImageUrl(img.image_name, 'design')
+                        }));
+                    }
+
+                    // If language_id is provided, return single translation object instead of array
+                    if (req.query.language_id && designData.design_translations && Array.isArray(designData.design_translations)) {
+                        if (designData.design_translations.length > 0) {
+                            designData.design_translation = designData.design_translations[0];
+                        } else {
+                            designData.design_translation = null;
+                        }
+                        delete designData.design_translations;
+                    }
+
                     // Get first image from design images, or use product image as fallback
                     let productImage = constructImageUrl(item.product.image, 'product');
-                    if (lowestPriceDesign && lowestPriceDesign.design.images && lowestPriceDesign.design.images.length > 0) {
-                        productImage = constructImageUrl(lowestPriceDesign.design.images[0].image_name, 'design');
+                    if (designData.images && designData.images.length > 0) {
+                        productImage = designData.images[0].image_url;
                     }
+
+                    // Add total_price to design data
+                    designData.total_price = "€ " + parseFloat(lowestPriceDesign.totalPrice.toFixed(2));
 
                     return {
                         id: productId,
@@ -707,11 +766,8 @@ const productController = () => {
                         category_id: item.product.category_id,
                         sub_category_id: item.product.sub_category_id,
                         style_id: item.product.style_id,
-                        design_id: lowestPriceDesign ? lowestPriceDesign.design_id : null,
-                        design_variant_name: lowestPriceDesign ? lowestPriceDesign.design.design_variant_name : null,
-                        total_price: lowestPriceDesign ? "€ " + parseFloat(lowestPriceDesign.totalPrice.toFixed(2)) : null,
-                        metal_rate_name: lowestPriceDesign && lowestPriceDesign.design.metal_rate ? 
-                            `${lowestPriceDesign.design.metal_rate.metal?.metal_code || ""} - ${lowestPriceDesign.design.metal_rate.karat?.karat || ""}` : null
+                        design: designData,
+                        total_price: designData.total_price
                     };
                 });
 
