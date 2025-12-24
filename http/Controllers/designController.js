@@ -1060,8 +1060,172 @@ const designController = () => {
         filterDropdownsEcom: async (req, res) => {
             try {
                 const languageId = req.query.language_id || req.body.language_id;
+                const productId = req.query.product_id || req.body.product_id;
 
-                // Fetch all dropdown data in parallel
+                // Build product filter - only active products (is_display = 1)
+                const productWhere = {
+                    is_display: 1
+                };
+
+                // If product_id is provided, filter by specific product
+                if (productId) {
+                    productWhere.id = parseInt(productId);
+                }
+
+                // First, fetch active products
+                const products = await Product.findAll({
+                    where: productWhere,
+                    attributes: ['id']
+                });
+
+                if (products.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Filter dropdowns fetched successfully",
+                        data: {
+                            cuts: [],
+                            diamond_types: [],
+                            clarities: [],
+                            carats: [],
+                            metals: [],
+                            karats: [],
+                            ring_sizes: []
+                        }
+                    });
+                }
+
+                const productIds = products.map(p => p.id);
+
+                // Fetch all designs for these products with their related data
+                const designs = await Designs.findAll({
+                    where: {
+                        product_id: { [Op.in]: productIds }
+                    },
+                    include: [
+                        {
+                            model: MetalRateMaster,
+                            as: 'metal_rate',
+                            attributes: ['id', 'metal_id', 'karat_id'],
+                            include: [
+                                { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] },
+                                { model: Karat, as: 'karat', attributes: ['id', 'karat'] }
+                            ]
+                        },
+                        {
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            attributes: ['id', 'cut_master_id', 'diamond_rate_id'],
+                            include: [
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id'],
+                                    where: {
+                                        deleted_at: null
+                                    },
+                                    required: false,
+                                    include: [
+                                        {
+                                            model: DiamondMaster,
+                                            as: 'diamond_master',
+                                            attributes: ['id', 'carat'],
+                                            where: {
+                                                deleted_at: null
+                                            },
+                                            required: false
+                                        },
+                                        {
+                                            model: DiamondType,
+                                            as: 'diamond_type',
+                                            attributes: ['id', 'type_name', 'type_code']
+                                        },
+                                        {
+                                            model: DiamondClarity,
+                                            as: 'clarity',
+                                            attributes: ['id', 'clarity']
+                                        }
+                                    ]
+                                },
+                                {
+                                    model: CutMaster,
+                                    as: 'cut_master',
+                                    attributes: ['id', 'cut_name', 'cut_code', 'cut_image']
+                                }
+                            ]
+                        }
+                    ]
+                });
+
+                // Extract unique IDs from available designs
+                const cutIds = new Set();
+                const diamondTypeIds = new Set();
+                const clarityIds = new Set();
+                const diamondMasterIds = new Set();
+                const metalIds = new Set();
+                const karatIds = new Set();
+
+                // Store actual objects for quick lookup
+                const cutMap = new Map();
+                const diamondTypeMap = new Map();
+                const clarityMap = new Map();
+                const diamondMasterMap = new Map();
+                const metalMap = new Map();
+                const karatMap = new Map();
+
+                designs.forEach(design => {
+                    // Extract metal and karat from metal_rate
+                    if (design.metal_rate) {
+                        if (design.metal_rate.metal_id) {
+                            metalIds.add(design.metal_rate.metal_id);
+                            if (design.metal_rate.metal) {
+                                metalMap.set(design.metal_rate.metal.id, design.metal_rate.metal);
+                            }
+                        }
+                        if (design.metal_rate.karat_id) {
+                            karatIds.add(design.metal_rate.karat_id);
+                            if (design.metal_rate.karat) {
+                                karatMap.set(design.metal_rate.karat.id, design.metal_rate.karat);
+                            }
+                        }
+                    }
+
+                    // Extract diamond-related data from diamond_details
+                    if (design.diamond_details && design.diamond_details.length > 0) {
+                        design.diamond_details.forEach(detail => {
+                            // Extract cut
+                            if (detail.cut_master_id) {
+                                cutIds.add(detail.cut_master_id);
+                                if (detail.cut_master) {
+                                    cutMap.set(detail.cut_master.id, detail.cut_master);
+                                }
+                            }
+
+                            // Extract diamond rate data
+                            if (detail.diamond_rate) {
+                                if (detail.diamond_rate.diamond_type_id) {
+                                    diamondTypeIds.add(detail.diamond_rate.diamond_type_id);
+                                    if (detail.diamond_rate.diamond_type) {
+                                        diamondTypeMap.set(detail.diamond_rate.diamond_type.id, detail.diamond_rate.diamond_type);
+                                    }
+                                }
+                                if (detail.diamond_rate.clarity_id) {
+                                    clarityIds.add(detail.diamond_rate.clarity_id);
+                                    if (detail.diamond_rate.clarity) {
+                                        clarityMap.set(detail.diamond_rate.clarity.id, detail.diamond_rate.clarity);
+                                    }
+                                }
+                                if (detail.diamond_rate.diamond_master_id) {
+                                    diamondMasterIds.add(detail.diamond_rate.diamond_master_id);
+                                    if (detail.diamond_rate.diamond_master) {
+                                        diamondMasterMap.set(detail.diamond_rate.diamond_master.id, detail.diamond_rate.diamond_master);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Fetch master data only for IDs that exist in designs
                 const [
                     cutMasters,
                     diamondTypes,
@@ -1070,42 +1234,48 @@ const designController = () => {
                     metals,
                     karats
                 ] = await Promise.all([
-                    // Diamond Cut options (ROUND, PEAR, CUSHION, etc.)
-                    CutMaster.findAll({
+                    // Diamond Cut options - only those used in designs
+                    cutIds.size > 0 ? CutMaster.findAll({
+                        where: { id: { [Op.in]: Array.from(cutIds) } },
                         attributes: ['id', 'cut_name', 'cut_code', 'cut_image'],
                         order: [['id', 'ASC']]
-                    }),
-                    // Diamond Type/Quality (NATURAL BRILLIANT, LAB GROWN, etc.)
-                    DiamondType.findAll({
+                    }) : [],
+                    // Diamond Type/Quality - only those used in designs
+                    diamondTypeIds.size > 0 ? DiamondType.findAll({
+                        where: { id: { [Op.in]: Array.from(diamondTypeIds) } },
                         attributes: ['id', 'type_name', 'type_code'],
                         order: [['id', 'ASC']]
-                    }),
-                    // Diamond Clarity (VS, VVS, IF, FVS, etc.)
-                    DiamondClarity.findAll({
+                    }) : [],
+                    // Diamond Clarity - only those used in designs
+                    clarityIds.size > 0 ? DiamondClarity.findAll({
+                        where: { id: { [Op.in]: Array.from(clarityIds) } },
                         attributes: ['id', 'clarity'],
                         order: [['id', 'ASC']]
-                    }),
-                    // Diamond Carat weights (0.05, 0.10, 0.20, etc.)
-                    DiamondMaster.findAll({
+                    }) : [],
+                    // Diamond Carat weights - only those used in designs
+                    diamondMasterIds.size > 0 ? DiamondMaster.findAll({
+                        where: { 
+                            id: { [Op.in]: Array.from(diamondMasterIds) },
+                            deleted_at: null
+                        },
                         attributes: ['id', 'carat'],
-                        where: {
-                            deleted_at: null
-                        },
                         order: [['carat', 'ASC']]
-                    }),
-                    // Metal Colors (WHITE, YELLOW, ROSE, PLATINUM)
-                    Metal.findAll({
-                        attributes: ['id', 'metal_name', 'metal_code'],
-                        where: {
+                    }) : [],
+                    // Metal Colors - only those used in designs
+                    metalIds.size > 0 ? Metal.findAll({
+                        where: { 
+                            id: { [Op.in]: Array.from(metalIds) },
                             deleted_at: null
                         },
+                        attributes: ['id', 'metal_name', 'metal_code'],
                         order: [['id', 'ASC']]
-                    }),
-                    // Metal Karat types (14K, 18K, 22K, etc.)
-                    Karat.findAll({
+                    }) : [],
+                    // Metal Karat types - only those used in designs
+                    karatIds.size > 0 ? Karat.findAll({
+                        where: { id: { [Op.in]: Array.from(karatIds) } },
                         attributes: ['id', 'karat'],
                         order: [['id', 'ASC']]
-                    })
+                    }) : []
                 ]);
 
                 // Fetch translations if language_id is provided
@@ -1113,25 +1283,40 @@ const designController = () => {
                 let metalTranslationsMap = new Map();
 
                 if (languageId) {
+                    const translationPromises = [];
+
+                    if (diamondTypeIds.size > 0) {
+                        translationPromises.push(
+                            DiamondTypeTranslation.findAll({
+                                where: {
+                                    language_id: parseInt(languageId),
+                                    diamond_type_id: { [Op.in]: Array.from(diamondTypeIds) }
+                                },
+                                attributes: ['diamond_type_id', 'diamond_type_name']
+                            })
+                        );
+                    } else {
+                        translationPromises.push(Promise.resolve([]));
+                    }
+
+                    if (metalIds.size > 0) {
+                        translationPromises.push(
+                            MetalTranslation.findAll({
+                                where: {
+                                    language_id: parseInt(languageId),
+                                    metal_id: { [Op.in]: Array.from(metalIds) }
+                                },
+                                attributes: ['metal_id', 'metal_name']
+                            })
+                        );
+                    } else {
+                        translationPromises.push(Promise.resolve([]));
+                    }
+
                     const [
                         diamondTypeTranslations,
                         metalTranslations
-                    ] = await Promise.all([
-                        // Fetch diamond type translations
-                        DiamondTypeTranslation.findAll({
-                            where: {
-                                language_id: parseInt(languageId)
-                            },
-                            attributes: ['diamond_type_id', 'diamond_type_name']
-                        }),
-                        // Fetch metal translations
-                        MetalTranslation.findAll({
-                            where: {
-                                language_id: parseInt(languageId)
-                            },
-                            attributes: ['metal_id', 'metal_name']
-                        })
-                    ]);
+                    ] = await Promise.all(translationPromises);
 
                     // Create maps for quick lookup
                     diamondTypeTranslations.forEach(trans => {
