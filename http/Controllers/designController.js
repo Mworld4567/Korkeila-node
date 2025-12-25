@@ -2056,6 +2056,66 @@ const designController = () => {
                 });
             }
         },
+        delete: async (req, res) => {
+            const transaction = req.transaction || null;
+            try {
+                // Validate design ID
+                if (!req.params.id) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Please provide design ID",
+                    });
+                }
+
+                // Find existing design
+                const design = await Designs.findByPk(req.params.id, { transaction });
+
+                if (!design) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Design not found",
+                    });
+                }
+
+                // Delete related records in parallel
+                await Promise.all([
+                    // Delete diamond details
+                    DesignsDiamondDetails.destroy({
+                        where: { design_id: req.params.id },
+                        transaction
+                    }),
+                    // Delete images
+                    DesignsImages.destroy({
+                        where: { design_id: req.params.id },
+                        transaction
+                    }),
+                    // Delete translations
+                    DesignTranslation.destroy({
+                        where: { design_id: req.params.id },
+                        transaction
+                    })
+                ]);
+
+                // Delete the design
+                await Designs.destroy({
+                    where: { id: req.params.id },
+                    transaction
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Design deleted successfully",
+                });
+
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
     };
 };
 module.exports = designController;
