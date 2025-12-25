@@ -757,7 +757,7 @@ const productController = () => {
                     }
 
                     // Add total_price to design data
-                    designData.total_price = "€ " + parseFloat(lowestPriceDesign.totalPrice.toFixed(2));
+                    designData.total_price = "€ " + Math.round(lowestPriceDesign.totalPrice);
 
                     return {
                         id: productId,

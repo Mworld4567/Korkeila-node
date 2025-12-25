@@ -164,6 +164,31 @@ const designController = () => {
                         };
                     });
 
+                    // Calculate total price
+                    // Formula: TotalPrice = (MetalWeight × RatePerGram) + (DiamondPieces × DiamondSize × DiamondRatePerCarat) × Markup
+                    const metalWeight = parseFloat(design.metal_weight) || 0;
+                    const ratePerGram = parseFloat(metalRate?.rate) || 0;
+                    const metalCost = metalWeight * ratePerGram;
+
+                    // Diamond cost calculation (sum of all diamond details)
+                    let diamondCost = 0;
+                    if (diamondDetails && diamondDetails.length > 0) {
+                        diamondDetails.forEach(diamondDetail => {
+                            const diamondPieces = parseInt(diamondDetail.pcs) || 0;
+                            const diamondSize = parseFloat(diamondDetail.diamond_rate?.diamond_master?.carat) || 0;
+                            const diamondRatePerCarat = parseFloat(diamondDetail.diamond_rate?.rate) || 0;
+
+                            diamondCost += diamondPieces * diamondSize * diamondRatePerCarat;
+                        });
+                    }
+
+                    // Markup - default to 1 if 0, null, or undefined
+                    const markUpValue = design.mark_up != null ? parseFloat(design.mark_up) : 1;
+                    const markup = markUpValue > 0 ? markUpValue : 1;
+
+                    // Total price calculation
+                    const totalPrice = (metalCost + diamondCost) * markup;
+
                     return {
                         id: design.id,
                         product_id: design.product_id,
@@ -178,7 +203,8 @@ const designController = () => {
                             id: img.id,
                             image_name: img.image_name,
                             image_url: constructImageUrl(img.image_name, 'design')
-                        }))
+                        })),
+                        total_price: "€ " + Math.round(totalPrice)
                     };
                 });
 
@@ -2309,7 +2335,7 @@ const designController = () => {
                 }
 
                 // Add total_price to design data
-                designDataJson.total_price = "€ " + parseFloat(totalPrice.toFixed(2));
+                designDataJson.total_price = "€ " + Math.round(totalPrice);
 
                 return res.status(200).json({
                     success: true,
