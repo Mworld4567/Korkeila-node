@@ -638,7 +638,7 @@ const productController = () => {
                         {
                             model: DesignTranslation,
                             as: 'design_translations',
-                            attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                            attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
                             where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
                             required: false,
                             include: [
