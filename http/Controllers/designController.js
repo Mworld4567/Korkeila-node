@@ -355,21 +355,21 @@ const designController = () => {
             try {
                 // Validate required fields
                 if (!req.body.product_id || req.body.product_id === "") {
-                    return res.status(401).json({
+                    return res.status(500).json({
                         success: false,
                         message: "Please enter product ID",
                     });
                 }
 
                 if (!req.body.product_name || req.body.product_name === "") {
-                    return res.status(401).json({
+                    return res.status(500).json({
                         success: false,
                         message: "Please enter product name",
                     });
                 }
 
                 if (!req.body.metal_rate_id || req.body.metal_rate_id === "") {
-                    return res.status(401).json({
+                    return res.status(500).json({
                         success: false,
                         message: "Please enter metal rate ID",
                     });
@@ -384,27 +384,20 @@ const designController = () => {
 
                 // Parse diamond_design_detail if it's a JSON string (when sent as form-data)
                 if (req.body.diamond_design_detail && typeof req.body.diamond_design_detail === 'string') {
-                    try {
                         req.body.diamond_design_detail = JSON.parse(req.body.diamond_design_detail);
-                    } catch (error) {
-                        return res.status(401).json({
-                            success: false,
-                            message: "Invalid diamond design details format",
-                        });
-                    }
                 }
 
-                if (!req.body.diamond_design_detail || !Array.isArray(req.body.diamond_design_detail) || req.body.diamond_design_detail.length === 0) {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Please provide diamond design details",
-                    });
-                }
+                // if (!req.body.diamond_design_detail || !Array.isArray(req.body.diamond_design_detail) || req.body.diamond_design_detail.length === 0) {
+                //     return res.status(401).json({
+                //         success: false,
+                //         message: "Please provide diamond design details",
+                //     });
+                // }
 
                 // Fetch product to get category_id and sub_category_id
                 const product = await Product.findByPk(req.body.product_id, { transaction });
                 if (!product) {
-                    return res.status(404).json({
+                    return res.status(500).json({
                         success: false,
                         message: "Product not found",
                     });
@@ -412,12 +405,9 @@ const designController = () => {
 
                 // Get first diamond_rate_id from diamond_design_detail for the Designs table (required field)
                 const firstDiamondRateId = req.body.diamond_design_detail[0]?.diamond_rate_id;
-                if (!firstDiamondRateId) {
-                    return res.status(401).json({
-                        success: false,
-                        message: "Please provide diamond rate ID in diamond design details",
-                    });
-                }
+                // if (firstDiamondRateId) {
+                    
+                // }
 
                 // Prepare design data
                 const designData = {
@@ -428,7 +418,7 @@ const designController = () => {
                     metal_rate_id: parseInt(req.body.metal_rate_id),
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
-                    is_filter_available: req.body.diamond_design_detail.length > 1 ? 0 : 1,
+                    is_filter_available: req.body.diamond_design_detail.length == 0 || req.body.diamond_design_detail.length > 1 ? 0 : 1,
                 };
 
                 // Check for duplicate design with same parameters
