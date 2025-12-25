@@ -14,6 +14,7 @@ const Metal = require("../../Models/Metal");
 const Karat = require("../../Models/Karat");
 const CutMaster = require("../../Models/CutMaster");
 const DesignTranslation = require("../../Models/DesignTranslation");
+const CategoryTranslation = require("../../Models/CategoryTranslation");
 const sequelize = require("../../config/dbconfig");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
@@ -630,7 +631,20 @@ const productController = () => {
                             model: Product,
                             as: 'product',
                             include: [
-                                { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                                { 
+                                    model: Category, 
+                                    as: 'category', 
+                                    attributes: ['id', 'category_code', 'image'],
+                                    include: [
+                                        {
+                                            model: CategoryTranslation,
+                                            as: 'category_translations',
+                                            attributes: ['id', 'category_name', 'language_id'],
+                                            where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                                            required: false
+                                        }
+                                    ]
+                                },
                                 { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
                                 { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
                             ]
@@ -656,6 +670,19 @@ const productController = () => {
                         designsByProduct.set(design.product_id, []);
                     }
                     designsByProduct.get(design.product_id).push(design);
+                });
+
+                // Process category translations to flatten category_name
+                allDesigns.forEach(design => {
+                    if (design.product && design.product.category && design.product.category.category_translations) {
+                        const translations = design.product.category.category_translations;
+                        if (translations && translations.length > 0) {
+                            // Use the first translation (should be only one due to where clause)
+                            design.product.category.category_name = translations[0].category_name;
+                        }
+                        // Remove the translations array to keep structure clean
+                        delete design.product.category.category_translations;
+                    }
                 });
 
                 // Calculate total price for each design

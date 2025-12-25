@@ -16,4 +16,6 @@ const CategoryTranslation = sequelize.define(
 );
 
 CategoryTranslation.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+Category.hasMany(CategoryTranslation, { foreignKey: 'category_id', as: 'category_translations' });
+
 module.exports = CategoryTranslation;

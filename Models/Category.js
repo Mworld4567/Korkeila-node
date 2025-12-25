@@ -14,4 +14,7 @@ const Category = sequelize.define(
     }
 );
 
+// Define hasMany relationship after CategoryTranslation is loaded to avoid circular dependency
+// This will be set up in CategoryTranslation.js after both models are defined
+
 module.exports = Category;
