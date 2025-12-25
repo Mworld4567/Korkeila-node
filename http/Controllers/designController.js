@@ -522,6 +522,7 @@ const designController = () => {
                             language_id: parseInt(item.language_id),
                             design_variant_name: item.design_variant_name ? item.design_variant_name.trim() : "",
                             description: item.description ? item.description.trim() : null,
+                            note: item.note ? item.note : null,
                         }));
 
                         designTranslations = await DesignTranslation.bulkCreate(translationRecords, { transaction });
@@ -570,6 +571,7 @@ const designController = () => {
                         language_id: trans.language_id,
                         design_variant_name: trans.design_variant_name,
                         description: trans.description,
+                        note: trans.note,
                     })),
                 };
 
@@ -884,6 +886,7 @@ const designController = () => {
                             language_id: parseInt(item.language_id),
                             design_variant_name: item.design_variant_name ? item.design_variant_name.trim() : "",
                             description: item.description ? item.description.trim() : null,
+                            note: item.note ? item.note : null,
                         }));
 
                         designTranslations = await DesignTranslation.bulkCreate(translationRecords, { transaction });
@@ -967,6 +970,7 @@ const designController = () => {
                         language_id: trans.language_id,
                         design_variant_name: trans.design_variant_name,
                         description: trans.description,
+                        note: trans.note,
                     })),
                 };
 
@@ -1462,7 +1466,7 @@ const designController = () => {
                             {
                                 model: DesignTranslation,
                                 as: 'design_translations',
-                                attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                                attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
                                 include: [
                                     { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
                                 ]
@@ -1516,7 +1520,7 @@ const designController = () => {
                             {
                                 model: DesignTranslation,
                                 as: 'design_translations',
-                                attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                                attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
                                 include: [
                                     { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
                                 ]

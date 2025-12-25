@@ -10,6 +10,7 @@ const DesignTranslation = sequelize.define(
         language_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
         design_variant_name: { type: Sequelize.STRING(255), allowNull: false },
         description: { type: Sequelize.TEXT, allowNull: true },
+        note: { type: Sequelize.STRING(255), allowNull: true },
     },
     {
         timestamps: false,
