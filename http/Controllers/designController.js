@@ -132,12 +132,17 @@ const designController = () => {
                     diamondDetailsMap.get(dd.design_id).push(dd);
                 });
 
-                // Group images by design_id
+                    // Group images by design_id and sort by order
                 imagesList.forEach(img => {
                     if (!imagesMap.has(img.design_id)) {
                         imagesMap.set(img.design_id, []);
                     }
                     imagesMap.get(img.design_id).push(img);
+                });
+                
+                // Sort images by order within each design
+                imagesMap.forEach((images, designId) => {
+                    images.sort((a, b) => (a.order || 0) - (b.order || 0));
                 });
 
                 // Build response data
@@ -201,16 +206,10 @@ const designController = () => {
                         diamond_design_detail: formattedDiamondDetails,
                         images: images.map(img => ({
                             id: img.id,
-                            image_1: img.image_1,
-                            image_url_1: constructImageUrl(img.image_1, 'design'),
-                            image_2: img.image_2,
-                            image_url_2: constructImageUrl(img.image_2, 'design'),
-                            image_3: img.image_3,
-                            image_url_3: constructImageUrl(img.image_3, 'design'),
-                            image_4: img.image_4,
-                            image_url_4: constructImageUrl(img.image_4, 'design'),
-                            video_1: img.video_1,
-                            video_url_1: constructImageUrl(img.video_1, 'design')
+                            image: img.image_name,
+                            image_url: constructImageUrl(img.image_name, 'design'),
+                            order: img.order,
+                            is_product_listing: img.is_product_listing,
                         })),
                         total_price: "€ " + Math.round(totalPrice)
                     };
@@ -276,7 +275,8 @@ const designController = () => {
                         order: [['id', 'DESC']]
                     }),
                     DesignsImages.findAll({
-                        where: { design_id: design.id }
+                        where: { design_id: design.id },
+                        order: [['order', 'ASC']]
                     }),
                     Product.findByPk(design.product_id),
                     CategoryMaster.findByPk(design.category_id),
@@ -332,16 +332,10 @@ const designController = () => {
                     diamond_design_detail: formattedDiamondDetails,
                     images: imagesList.map(img => ({
                         id: img.id,
-                        image_1: img.image_1,
-                        image_url_1: constructImageUrl(img.image_1, 'design'),
-                        image_2: img.image_2,
-                        image_url_2: constructImageUrl(img.image_2, 'design'),
-                        image_3: img.image_3,
-                        image_url_3: constructImageUrl(img.image_3, 'design'),
-                        image_4: img.image_4,
-                        image_url_4: constructImageUrl(img.image_4, 'design'),
-                        video_1: img.video_1,
-                        video_url_1: constructImageUrl(img.video_1, 'design')
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
                     })),
                     translations: translations.map(trans => ({
                         id: trans.id,
@@ -562,22 +556,119 @@ const designController = () => {
                 }
 
                 // Handle file uploads - save to DesignsImages table
+                // Expected format: [{image: "image_1.jpg", order: 1, is_product_listing: 1}, ...]
                 const uploadedImages = [];
-                if (req.files && req.files.length > 0) {
-                    const imageRecords = req.files.map(file => {
-                        // Extract filename from S3 key (file.key contains the full S3 path)
+                let designImagesArray = [];
+                
+                // Parse design_images from req.body if provided
+                if (req.body.design_images) {
+                    let designImages = req.body.design_images;
+
+                    // Parse design_images if it's a JSON string (when sent as form-data)
+                    if (typeof designImages === 'string') {
+                        try {
+                            designImages = designImages.trim();
+                            designImages = JSON.parse(designImages);
+                        } catch (error) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Invalid design images format. Please ensure it's valid JSON array, e.g., [{\"image\": \"image_1.jpg\", \"order\": 1, \"is_product_listing\": 1}]",
+                            });
+                        }
+                    }
+
+                    // Validate that design_images is an array
+                    if (!Array.isArray(designImages)) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "design_images must be an array",
+                        });
+                    }
+
+                    // Validate each item in the array
+                    for (const item of designImages) {
+                        if (typeof item !== 'object' || item === null) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must be an object with 'image', 'order', and 'is_product_listing' properties",
+                            });
+                        }
+
+                        if (!item.image || typeof item.image !== 'string') {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'image' property (string)",
+                            });
+                        }
+
+                        if (item.order === undefined || item.order === null || isNaN(parseInt(item.order))) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'order' property (number)",
+                            });
+                        }
+
+                        if (item.is_product_listing === undefined || item.is_product_listing === null) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'is_product_listing' property (0 or 1)",
+                            });
+                        }
+                    }
+
+                    designImagesArray = designImages;
+                }
+
+                // Create image records
+                if (designImagesArray.length > 0) {
+                    // Map uploaded files to design_images array by index
+                    const imageRecords = designImagesArray.map((item, index) => {
+                        let imageName = item.image;
+                        
+                        // If files are uploaded, use the filename from the uploaded file
+                        if (req.files && req.files.length > index) {
+                            const file = req.files[index];
+                            imageName = extractFilename(file.key) || file.originalname || item.image;
+                        }
+                        
+                        return {
+                            design_id: design.id,
+                            image_name: imageName,
+                            order: parseInt(item.order),
+                            is_product_listing: parseInt(item.is_product_listing) || 0,
+                        };
+                    });
+
+                    // Sort by order before creating
+                    imageRecords.sort((a, b) => a.order - b.order);
+
+                    const createdImages = await DesignsImages.bulkCreate(imageRecords, { transaction });
+                    uploadedImages.push(...createdImages.map(img => ({
+                        id: img.id,
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
+                    })));
+                } else if (req.files && req.files.length > 0) {
+                    // Fallback: if no design_images array provided but files are uploaded, create records with default order
+                    const imageRecords = req.files.map((file, index) => {
                         const imageName = extractFilename(file.key) || file.originalname;
                         return {
                             design_id: design.id,
                             image_name: imageName,
+                            order: index + 1,
+                            is_product_listing: 0,
                         };
                     });
 
                     const createdImages = await DesignsImages.bulkCreate(imageRecords, { transaction });
                     uploadedImages.push(...createdImages.map(img => ({
                         id: img.id,
-                        image_name: img.image_name,
-                        image_url: constructImageUrl(img.image_name, 'design')
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
                     })));
                 }
 
@@ -931,8 +1022,8 @@ const designController = () => {
                     });
                 }
 
-                // Handle file uploads - update DesignsImages table with image_1, image_2, image_3, image_4, video_1
-                const validKeys = ['image_1', 'image_2', 'image_3', 'image_4', 'video_1'];
+                // Handle file uploads - update DesignsImages table with new format
+                // Expected format: [{image: "image_1.jpg", order: 1, is_product_listing: 1}, ...]
                 let designImagesArray = [];
                 
                 // Parse design_images from req.body if provided
@@ -948,171 +1039,94 @@ const designController = () => {
                         } catch (error) {
                             return res.status(409).json({
                                 success: false,
-                                message: "Invalid design images format. Please ensure it's valid JSON with quoted keys, e.g., [{\"image_1\": \"filename.jpg\"}, {\"image_2\": \"filename2.jpg\"}] or a single object {\"image_1\": \"filename.jpg\", \"image_2\": \"filename2.jpg\"}",
+                                message: "Invalid design images format. Please ensure it's valid JSON array, e.g., [{\"image\": \"image_1.jpg\", \"order\": 1, \"is_product_listing\": 1}]",
                             });
                         }
                     }
 
-                    // If designImages is still not an object or array after parsing, it's invalid
-                    if (typeof designImages !== 'object' || designImages === null) {
+                    // Validate that design_images is an array
+                    if (!Array.isArray(designImages)) {
                         return res.status(409).json({
                             success: false,
-                            message: "design_images must be an object or array",
+                            message: "design_images must be an array",
                         });
                     }
 
-                    // Handle both array format and object format (from form-data bracket notation)
-                    if (Array.isArray(designImages)) {
-                        // Check if array contains single object with multiple keys or multiple objects with single keys
-                        if (designImages.length === 1 && typeof designImages[0] === 'object' && designImages[0] !== null) {
-                            const keys = Object.keys(designImages[0]);
-                            // If single object with multiple keys, convert to array of single-key objects
-                            if (keys.length > 1) {
-                                designImagesArray = keys
-                                    .sort((a, b) => {
-                                        // Sort by numeric suffix if present (image_1, image_2, etc.)
-                                        const aMatch = a.match(/_(\d+)$/);
-                                        const bMatch = b.match(/_(\d+)$/);
-                                        if (aMatch && bMatch) {
-                                            return parseInt(aMatch[1]) - parseInt(bMatch[1]);
-                                        }
-                                        return a.localeCompare(b);
-                                    })
-                                    .map(key => ({ [key]: designImages[0][key] }));
-                            } else {
-                                // Single object with one key, keep as is
-                                designImagesArray = designImages;
-                            }
-                        } else {
-                            // Multiple objects in array
-                            designImagesArray = designImages;
+                    // Validate each item in the array
+                    for (const item of designImages) {
+                        if (typeof item !== 'object' || item === null) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must be an object with 'image', 'order', and 'is_product_listing' properties",
+                            });
                         }
-                    } else if (typeof designImages === 'object' && designImages !== null) {
-                        // Single object with multiple keys, convert to array of single-key objects
-                        const keys = Object.keys(designImages);
-                        designImagesArray = keys
-                            .sort((a, b) => {
-                                // Sort by numeric suffix if present (image_1, image_2, etc.)
-                                const aMatch = a.match(/_(\d+)$/);
-                                const bMatch = b.match(/_(\d+)$/);
-                                if (aMatch && bMatch) {
-                                    return parseInt(aMatch[1]) - parseInt(bMatch[1]);
-                                }
-                                return a.localeCompare(b);
-                            })
-                            .map(key => ({ [key]: designImages[key] }));
+
+                        if (!item.image || typeof item.image !== 'string') {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'image' property (string)",
+                            });
+                        }
+
+                        if (item.order === undefined || item.order === null || isNaN(parseInt(item.order))) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'order' property (number)",
+                            });
+                        }
+
+                        if (item.is_product_listing === undefined || item.is_product_listing === null) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Each item in design_images must have a valid 'is_product_listing' property (0 or 1)",
+                            });
+                        }
                     }
 
-                    // Validate that all keys are valid
-                    for (const item of designImagesArray) {
-                        if (typeof item === 'object' && item !== null) {
-                            const keys = Object.keys(item);
-                            for (const key of keys) {
-                                if (!validKeys.includes(key)) {
-                                    return res.status(409).json({
-                                        success: false,
-                                        message: `Invalid image key: ${key}. Valid keys are: ${validKeys.join(', ')}`,
-                                    });
-                                }
-                            }
-                        }
-                    }
+                    designImagesArray = designImages;
                 }
 
-                // Get existing DesignsImages record or create new one
-                let designsImagesRecord = await DesignsImages.findOne({
+                // Delete existing images for this design
+                await DesignsImages.destroy({
                     where: { design_id: req.params.id },
                     transaction
                 });
 
-                // Prepare update data - start with existing values
-                const updateData = {
-                    design_id: parseInt(req.params.id),
-                };
-
-                // If record exists, preserve existing values
-                if (designsImagesRecord) {
-                    updateData.image_1 = designsImagesRecord.image_1 || null;
-                    updateData.image_2 = designsImagesRecord.image_2 || null;
-                    updateData.image_3 = designsImagesRecord.image_3 || null;
-                    updateData.image_4 = designsImagesRecord.image_4 || null;
-                    updateData.video_1 = designsImagesRecord.video_1 || null;
-                } else {
-                    updateData.image_1 = null;
-                    updateData.image_2 = null;
-                    updateData.image_3 = null;
-                    updateData.image_4 = null;
-                    updateData.video_1 = null;
-                }
-
-                // Map uploaded files to their corresponding keys based on design_images
-                // Match files array with design_images array by index
-                if (req.files && req.files.length > 0 && designImagesArray.length > 0) {
-                    // Ensure we don't exceed the number of files
-                    const maxLength = Math.min(req.files.length, designImagesArray.length);
-                    
-                    for (let i = 0; i < maxLength; i++) {
-                        const file = req.files[i];
-                        const designImageItem = designImagesArray[i];
-                        
-                        if (file && designImageItem && typeof designImageItem === 'object') {
-                            // Extract filename from uploaded file
-                            const imageName = extractFilename(file.key) || file.originalname;
-                            
-                            // Get the key from designImageItem (should be one key like image_1, image_2, etc.)
-                            const keys = Object.keys(designImageItem);
-                            if (keys.length > 0 && validKeys.includes(keys[0])) {
-                                updateData[keys[0]] = imageName;
-                            }
-                        }
-                    }
-                }
-
-                // Update or create DesignsImages record
-                if (designsImagesRecord) {
-                    await DesignsImages.update(updateData, {
-                        where: { id: designsImagesRecord.id },
-                        transaction
-                    });
-                    // Refresh the record
-                    designsImagesRecord = await DesignsImages.findByPk(designsImagesRecord.id, { transaction });
-                } else {
-                    designsImagesRecord = await DesignsImages.create(updateData, { transaction });
-                }
-
-                // Format images for response
+                // Create new image records
                 const allImages = [];
-                if (designsImagesRecord) {
-                    if (designsImagesRecord.image_1) {
-                        allImages.push({
-                            image_1: designsImagesRecord.image_1,
-                            image_url: constructImageUrl(designsImagesRecord.image_1, 'design')
-                        });
-                    }
-                    if (designsImagesRecord.image_2) {
-                        allImages.push({
-                            image_2: designsImagesRecord.image_2,
-                            image_url: constructImageUrl(designsImagesRecord.image_2, 'design')
-                        });
-                    }
-                    if (designsImagesRecord.image_3) {
-                        allImages.push({
-                            image_3: designsImagesRecord.image_3,
-                            image_url: constructImageUrl(designsImagesRecord.image_3, 'design')
-                        });
-                    }
-                    if (designsImagesRecord.image_4) {
-                        allImages.push({
-                            image_4: designsImagesRecord.image_4,
-                            image_url: constructImageUrl(designsImagesRecord.image_4, 'design')
-                        });
-                    }
-                    if (designsImagesRecord.video_1) {
-                        allImages.push({
-                            video_1: designsImagesRecord.video_1,
-                            image_url: constructImageUrl(designsImagesRecord.video_1, 'design')
-                        });
-                    }
+                if (designImagesArray.length > 0) {
+                    // Map uploaded files to design_images array by index
+                    const imageRecords = designImagesArray.map((item, index) => {
+                        let imageName = item.image;
+                        
+                        // If files are uploaded, use the filename from the uploaded file
+                        if (req.files && req.files.length > index) {
+                            const file = req.files[index];
+                            imageName = extractFilename(file.key) || file.originalname || item.image;
+                        }
+                        
+                        return {
+                            design_id: parseInt(req.params.id),
+                            image_name: imageName,
+                            order: parseInt(item.order),
+                            is_product_listing: parseInt(item.is_product_listing) || 0,
+                        };
+                    });
+
+                    // Sort by order before creating
+                    imageRecords.sort((a, b) => a.order - b.order);
+
+                    // Bulk create image records
+                    const createdImages = await DesignsImages.bulkCreate(imageRecords, { transaction });
+
+                    // Format images for response
+                    allImages.push(...createdImages.map(img => ({
+                        id: img.id,
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
+                    })));
                 }
 
                 // Fetch updated design
@@ -2398,7 +2412,8 @@ const designController = () => {
                         {
                             model: DesignsImages,
                             as: 'images',
-                            attributes: ['id', 'image_1', 'image_2', 'image_3', 'image_4', 'video_1']
+                            attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                            order: [['order', 'ASC']]
                         },
                         {
                             model: Product,
@@ -2459,16 +2474,10 @@ const designController = () => {
                 if (designDataJson.images && Array.isArray(designDataJson.images)) {
                     designDataJson.images = designDataJson.images.map(img => ({
                         id: img.id,
-                        image_1: img.image_1,
-                        image_url_1: constructImageUrl(img.image_1, 'design'),
-                        image_2: img.image_2,
-                        image_url_2: constructImageUrl(img.image_2, 'design'),
-                        image_3: img.image_3,
-                        image_url_3: constructImageUrl(img.image_3, 'design'),  
-                        image_4: img.image_4,
-                        image_url_4: constructImageUrl(img.image_4, 'design'),
-                        video_1: img.video_1,
-                        video_url_1: constructImageUrl(img.video_1, 'design')
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
                     }));
                 } else {
                     designDataJson.images = [];
