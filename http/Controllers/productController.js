@@ -625,7 +625,7 @@ const productController = () => {
                         {
                             model: DesignsImages,
                             as: 'images',
-                            attributes: ['id', 'image_name']
+                            attributes: ['id', 'image_1', 'image_2', 'image_3', 'image_4', 'video_1']
                         },
                         {
                             model: Product,
@@ -762,8 +762,16 @@ const productController = () => {
                     if (designData.images && Array.isArray(designData.images)) {
                         designData.images = designData.images.map(img => ({
                             id: img.id,
-                            image_name: img.image_name,
-                            image_url: constructImageUrl(img.image_name, 'design')
+                            image_1: img.image_1,
+                            image_url_1: constructImageUrl(img.image_1, 'design'),
+                            image_2: img.image_2,
+                            image_url_2: constructImageUrl(img.image_2, 'design'),
+                            image_3: img.image_3,
+                            image_url_3: constructImageUrl(img.image_3, 'design'),
+                            image_4: img.image_4,
+                            image_url_4: constructImageUrl(img.image_4, 'design'),
+                            video_1: img.video_1,
+                            video_url_1: constructImageUrl(img.video_1, 'design'),
                         }));
                     }
 
