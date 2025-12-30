@@ -2427,7 +2427,7 @@ const designController = () => {
                             model: DesignsImages,
                             as: 'images',
                             attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-                            order: [['order', 'ASC']]
+                            order: [['id', 'ASC']]
                         },
                         {
                             model: Product,
