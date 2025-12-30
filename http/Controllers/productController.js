@@ -626,7 +626,8 @@ const productController = () => {
                             model: DesignsImages,
                             as: 'images',
                             attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-                            order: [['id', 'ASC']]
+                            separate: true,
+                            order: [['order', 'ASC']]
                         },
                         {
                             model: Product,
