@@ -23,6 +23,10 @@ const DesignTranslation = require("../../Models/DesignTranslation");
 const { Op } = require("sequelize");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 const Language = require("../../Models/Language");
+const csvtojson = require("csvtojson");
+const fs = require("fs");
+const { getS3Object, deleteFromBucket } = require("../middlewares/awsS3Middleware");
+const { priceFlag, filterAvailable } = require("../../config/globalVariable");
 
 const designController = () => {
     return {
@@ -166,6 +170,7 @@ const designController = () => {
                                 dd.diamond_rate?.diamond_type?.type_name + " " +
                                 dd.diamond_rate?.clarity?.clarity,
                             pcs: dd.pcs,
+                            is_center: dd.is_center || 0,
                         };
                     });
 
@@ -317,6 +322,7 @@ const designController = () => {
                             diamondRate?.diamond_type?.type_name + " " +
                             diamondRate?.clarity?.clarity,
                         pcs: dd.pcs,
+                        is_center: dd.is_center || 0,
                     };
                 });
 
@@ -429,7 +435,9 @@ const designController = () => {
                     metal_rate_id: parseInt(req.body.metal_rate_id),
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
-                    is_filter_available: req.body.diamond_design_detail.length == 0 || req.body.diamond_design_detail.length > 1 ? 0 : 1,
+                    is_filter_available: req.body.diamond_design_detail.length == 0 ?
+                        filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
+                    price_flag: req.body.price_flag || priceFlag.NotSet,
                 };
 
                 // Check for duplicate design with same parameters
@@ -514,6 +522,7 @@ const designController = () => {
                     cut_master_id: parseInt(detail.cut_id),
                     diamond_rate_id: parseInt(detail.diamond_rate_id),
                     pcs: parseInt(detail.pcs) || 0,
+                    is_center: detail.is_center || 0,
                 }));
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
@@ -695,6 +704,7 @@ const designController = () => {
                         diamond_rate_id: detail.diamond_rate_id,
                         diamond_rate_name: detail.diamond_rate_name || "",
                         pcs: detail.pcs,
+                        is_center: detail.is_center || 0,
                     })),
                     images: uploadedImages,
                     translations: designTranslations.map(trans => ({
@@ -790,12 +800,12 @@ const designController = () => {
                     }
                 }
 
-                if (!req.body.diamond_design_detail || !Array.isArray(req.body.diamond_design_detail) || req.body.diamond_design_detail.length === 0) {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please provide diamond design details",
-                    });
-                }
+                // if (!req.body.diamond_design_detail || !Array.isArray(req.body.diamond_design_detail) || req.body.diamond_design_detail.length === 0) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please provide diamond design details",
+                //     });
+                // }
 
                 // Fetch product to get category_id and sub_category_id
                 const product = await Product.findByPk(req.body.product_id, { transaction });
@@ -806,14 +816,14 @@ const designController = () => {
                     });
                 }
 
-                // Get first diamond_rate_id from diamond_design_detail for the Designs table (required field)
-                const firstDiamondRateId = req.body.diamond_design_detail[0]?.diamond_rate_id;
-                if (!firstDiamondRateId) {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please provide diamond rate ID in diamond design details",
-                    });
-                }
+                // // Get first diamond_rate_id from diamond_design_detail for the Designs table (required field)
+                // const firstDiamondRateId = req.body.diamond_design_detail[0]?.diamond_rate_id;
+                // if (!firstDiamondRateId) {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please provide diamond rate ID in diamond design details",
+                //     });
+                // }
 
                 // Prepare design data
                 const designData = {
@@ -824,7 +834,9 @@ const designController = () => {
                     metal_rate_id: parseInt(req.body.metal_rate_id),
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
-                    is_filter_available: req.body.diamond_design_detail.length > 1 ? 0 : 1,
+                    is_filter_available: req.body.diamond_design_detail.length == 0 ?
+                        filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
+                    price_flag: req.body.price_flag || priceFlag.NotSet,
                 };
 
                 // Check if incoming data is the same as current design (to avoid false duplicate detection)
@@ -976,6 +988,7 @@ const designController = () => {
                     cut_master_id: parseInt(detail.cut_id),
                     diamond_rate_id: parseInt(detail.diamond_rate_id),
                     pcs: parseInt(detail.pcs) || 0,
+                    is_center: detail.is_center || 0,
                 }));
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
@@ -1162,6 +1175,7 @@ const designController = () => {
                         diamond_rate_id: detail.diamond_rate_id,
                         diamond_rate_name: detail.diamond_rate_name || "",
                         pcs: detail.pcs,
+                        is_center: detail.is_center || 0,
                     })),
                     images: allImages,
                     translations: designTranslations.map(trans => ({

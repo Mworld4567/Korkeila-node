@@ -17,6 +17,7 @@ const Designs = sequelize.define(
         metal_weight: { type: Sequelize.FLOAT, allowNull: false, },
         mark_up: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
         is_filter_available: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
+        price_flag: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 0 },
     },
     {
         timestamps: false,
