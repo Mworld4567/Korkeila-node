@@ -621,14 +621,21 @@ const designController = () => {
 
                 // Create image records
                 if (designImagesArray.length > 0) {
-                    // Map uploaded files to design_images array by index
-                    const imageRecords = designImagesArray.map((item, index) => {
+                    // Map uploaded files to design_images array by matching original filename
+                    const imageRecords = designImagesArray.map((item) => {
                         let imageName = item.image;
                         
-                        // If files are uploaded, use the filename from the uploaded file
-                        if (req.files && req.files.length > index) {
-                            const file = req.files[index];
-                            imageName = extractFilename(file.key) || file.originalname || item.image;
+                        // If files are uploaded, find the file that matches the original filename
+                        if (req.files && req.files.length > 0) {
+                            // Try to find file by matching originalname with item.image
+                            const matchingFile = req.files.find(file => {
+                                const originalName = file.originalname || '';
+                                return originalName === item.image || originalName.endsWith(item.image);
+                            });
+                            
+                            if (matchingFile) {
+                                imageName = extractFilename(matchingFile.key) || matchingFile.originalname || item.image;
+                            }
                         }
                         
                         return {
@@ -1095,14 +1102,21 @@ const designController = () => {
                 // Create new image records
                 const allImages = [];
                 if (designImagesArray.length > 0) {
-                    // Map uploaded files to design_images array by index
-                    const imageRecords = designImagesArray.map((item, index) => {
+                    // Map uploaded files to design_images array by matching original filename
+                    const imageRecords = designImagesArray.map((item) => {
                         let imageName = item.image;
                         
-                        // If files are uploaded, use the filename from the uploaded file
-                        if (req.files && req.files.length > index) {
-                            const file = req.files[index];
-                            imageName = extractFilename(file.key) || file.originalname || item.image;
+                        // If files are uploaded, find the file that matches the original filename
+                        if (req.files && req.files.length > 0) {
+                            // Try to find file by matching originalname with item.image
+                            const matchingFile = req.files.find(file => {
+                                const originalName = file.originalname || '';
+                                return originalName === item.image || originalName.endsWith(item.image);
+                            });
+                            
+                            if (matchingFile) {
+                                imageName = extractFilename(matchingFile.key) || matchingFile.originalname || item.image;
+                            }
                         }
                         
                         return {
