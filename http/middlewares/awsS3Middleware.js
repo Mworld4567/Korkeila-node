@@ -83,7 +83,6 @@ let uploadInS3File = multer({
   storage: multerS3({
     s3,
     bucket: process.env.AWS_BUCKET_NAME,
-    acl: "public-read",
     contentType: multerS3.AUTO_CONTENT_TYPE,
     metadata: (req, file, cb) => {
       cb(null, {
@@ -91,17 +90,16 @@ let uploadInS3File = multer({
       });
     },
     key: (req, file, cb) => {
-      console.log(
-        `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/csv/${
-          file.originalname
-        }`
-      );
-      cb(
-        null,
-        `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/csv/${
-          file.originalname
-        }`
-      );
+      // Handle undefined originalname
+      const originalName = file.originalname || `file_${Date.now()}.csv`;
+      // Handle undefined baseUrl segment
+      const baseUrlParts = req.baseUrl ? req.baseUrl.split("/") : [];
+      const routeName = baseUrlParts[2] || "testS3";
+      
+      // Store files in public/ subfolder: public/{routeName}/csv/{filename}
+      const s3Key = `public/${routeName}/csv/${originalName}`;
+      console.log("S3 Key:", s3Key);
+      cb(null, s3Key);
     },
   }),
 });

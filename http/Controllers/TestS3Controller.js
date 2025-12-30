@@ -161,6 +161,70 @@ const testS3Controller = () => {
         //     }
         // },
 
+        // Test endpoint for S3 CSV/Excel upload using multer middleware
+        testCsvUpload: async (req, res) => {
+            try {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please upload a CSV or Excel file (csv/xlsx/xls)",
+                    });
+                }
+
+                // Validate that file was properly uploaded
+                if (!req.file.key) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "File upload failed: S3 key is missing",
+                    });
+                }
+
+                // Construct CloudFront URL
+                const cloudfrontUrl = process.env.AWS_URL
+                
+                // Handle different key formats
+                // CSV upload middleware includes bucket name in key: bucket-name/testS3/csv/filename.csv
+                // Image upload uses: public/testS3/image/filename.jpg
+                let urlPath = req.file.key;
+                
+                // Remove bucket name prefix if present (bucket name is at the start)
+                const bucketName = process.env.AWS_BUCKET_NAME;
+                if (bucketName && urlPath.startsWith(`${bucketName}/`)) {
+                    urlPath = urlPath.substring(bucketName.length + 1);
+                }
+                
+                // Remove 'public/' prefix if present
+                if (urlPath.startsWith('public/')) {
+                    urlPath = urlPath.substring(7); // Remove 'public/' (7 characters)
+                }
+                
+                // Ensure CloudFront URL ends with '/' and path doesn't start with '/'
+                const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                const fileUrl = `${baseUrl}${urlPath}`;
+
+                return res.status(200).json({
+                    success: true,
+                    message: "CSV/Excel file uploaded to S3 successfully",
+                    data: {
+                        originalName: req.file.originalname || 'unknown',
+                        fileName: req.file.key,
+                        fileSize: req.file.size || 0,
+                        mimeType: req.file.mimetype || 'application/octet-stream',
+                        url: fileUrl, // Permanent public S3 URL
+                        bucket: req.file.bucket,
+                    },
+                });
+            } catch (error) {
+                console.log("S3 CSV Upload Error:", error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to upload CSV/Excel file to S3",
+                    error: error.message,
+                });
+            }
+        },
+
         // Test endpoint to get S3 connection status
         testS3Connection: async (req, res) => {
             try {
