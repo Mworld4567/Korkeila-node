@@ -276,6 +276,7 @@ const designController = () => {
                     }),
                     DesignsImages.findAll({
                         where: { design_id: design.id },
+                        separate: true,
                         order: [['order', 'ASC']]
                     }),
                     Product.findByPk(design.product_id),
@@ -2427,6 +2428,7 @@ const designController = () => {
                             model: DesignsImages,
                             as: 'images',
                             attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                            separate: true,
                             order: [['id', 'ASC']]
                         },
                         {
