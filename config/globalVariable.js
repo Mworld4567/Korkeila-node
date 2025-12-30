@@ -13,7 +13,19 @@ const globalAdminActions = {
     RoleDelete: 12,
 };
 
+const priceFlag = {
+    NotSet: 0,
+    Set: 1,
+};
+
+const filterAvailable = {
+    NoDiamond: 0,
+    SingleDiamond: 1,
+    MultipleDiamond: 2,
+};
 
 module.exports = {
     globalAdminActions,
+    priceFlag,
+    filterAvailable,
 };
