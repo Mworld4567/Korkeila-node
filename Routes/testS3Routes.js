@@ -1,12 +1,17 @@
 const express = require("express");
 const Router = express.Router();
 const testS3Controller = require('../http/Controllers/TestS3Controller');
-const { uploadInS3Image } = require("../http/middlewares/awsS3Middleware");
+const { uploadInS3Image, uploadInS3File } = require("../http/middlewares/awsS3Middleware");
 
 // Test endpoint for S3 image upload (AWS SDK v3 compatible)
 // POST /api/testS3/upload-image
 // Use multipart/form-data with field name "file"
 Router.post("/upload-image", uploadInS3Image.single("file"), testS3Controller().testImageUpload);
+
+// Test endpoint for S3 CSV/Excel upload
+// POST /api/testS3/upload-csv
+// Use multipart/form-data with field name "file"
+Router.post("/upload-csv", uploadInS3File.single("file"), testS3Controller().testCsvUpload);
 
 // Test endpoint to check S3 connection status
 // GET /api/testS3/connection
