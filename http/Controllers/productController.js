@@ -780,10 +780,13 @@ const productController = () => {
                         delete designData.design_translations;
                     }
 
-                    // Get first image from design images, or use product image as fallback
+                    // Get image where is_product_listing is 1, or use product image as fallback
                     let productImage = constructImageUrl(item.product.image, 'product');
                     if (designData.images && designData.images.length > 0) {
-                        productImage = designData.images[0].image_url;
+                        const listingImage = designData.images.find(img => img.is_product_listing === 1);
+                        if (listingImage) {
+                            productImage = listingImage.image_url;
+                        }
                     }
 
                     // Add total_price to design data
