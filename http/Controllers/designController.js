@@ -2603,6 +2603,57 @@ const designController = () => {
                 });
             }
         },
+        deleteDesignImage: async (req, res) => {
+            try {
+                // Validate image ID
+                if (!req.params.id) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Please provide design image ID",
+                    });
+                }
+
+                // Find existing design image
+                const designImage = await DesignsImages.findByPk(req.params.id);
+
+                if (!designImage) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Design image not found",
+                    });
+                }
+
+                // Delete image from S3 if exists
+                if (designImage.image_name) {
+                    try {
+                        // Construct full S3 key for deletion: public/design/image/{filename}
+                        const fullS3Key = `public/design/image/${designImage.image_name}`;
+                        await deleteFromBucket(fullS3Key);
+                    } catch (deleteError) {
+                        console.log("Error deleting image from S3:", deleteError);
+                        // Continue even if deletion fails
+                    }
+                }
+
+                // Delete the image record
+                await DesignsImages.destroy({
+                    where: { id: req.params.id }
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Design image deleted successfully",
+                });
+
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
     };
 };
 module.exports = designController;

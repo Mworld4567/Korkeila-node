@@ -11,6 +11,7 @@ Router.post("/create", authMiddleware, uploadDesignFilesInS3.array('images'), tr
 // Router.post("/upload-csv", authMiddleware, uploadInS3File.single('file'), transactionMiddleware(designController().uploadCsv));
 Router.put("/update/:id", authMiddleware, uploadDesignFilesInS3.array('images'), transactionMiddleware(designController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(designController().delete));
+Router.delete("/delete-image/:id", authMiddleware, designController().deleteDesignImage);
 Router.get("/read", authMiddleware, designController().read);
 Router.get("/readOne/:id", authMiddleware, designController().readOne);
 //ecom endpoints
