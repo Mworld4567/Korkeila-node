@@ -1107,15 +1107,57 @@ const designController = () => {
                     designImagesArray = designImages;
                 }
 
-                // Delete existing images for this design
-                await DesignsImages.destroy({
+                // Fetch existing images for this design
+                const existingImages = await DesignsImages.findAll({
                     where: { design_id: req.params.id },
                     transaction
                 });
 
-                // Create new image records
+                // Handle image updates - only update images provided in payload, keep others
                 const allImages = [];
+                const matchedExistingImageIds = []; // Track which existing images were updated
+                
                 if (designImagesArray.length > 0) {
+                    // Identify which existing images should be updated/deleted (matched by image name)
+                    const imageNamesToDelete = [];
+                    
+                    for (const payloadItem of designImagesArray) {
+                        const payloadImageName = payloadItem.image;
+                        
+                        // Find existing image that matches this payload image
+                        // Match by exact name or by checking if one contains the other
+                        const existingImage = existingImages.find(img => {
+                            if (!img.image_name) return false;
+                            // Exact match
+                            if (img.image_name === payloadImageName) return true;
+                            // Check if stored name contains payload name or vice versa
+                            if (img.image_name.includes(payloadImageName) || payloadImageName.includes(img.image_name)) {
+                                return true;
+                            }
+                            // Check if they match by filename (ignoring path)
+                            const existingFileName = img.image_name.split('/').pop() || img.image_name;
+                            const payloadFileName = payloadImageName.split('/').pop() || payloadImageName;
+                            if (existingFileName === payloadFileName) return true;
+                            return false;
+                        });
+                        
+                        if (existingImage) {
+                            imageNamesToDelete.push(existingImage.image_name);
+                            matchedExistingImageIds.push(existingImage.id);
+                        }
+                    }
+
+                    // Delete only the images that are being updated
+                    if (imageNamesToDelete.length > 0) {
+                        await DesignsImages.destroy({
+                            where: { 
+                                design_id: req.params.id,
+                                image_name: { [Op.in]: imageNamesToDelete }
+                            },
+                            transaction
+                        });
+                    }
+
                     // Map uploaded files to design_images array by matching original filename
                     const imageRecords = designImagesArray.map((item) => {
                         let imageName = item.image;
@@ -1144,10 +1186,10 @@ const designController = () => {
                     // Sort by order before creating
                     imageRecords.sort((a, b) => a.order - b.order);
 
-                    // Bulk create image records
+                    // Bulk create image records for updated/new images
                     const createdImages = await DesignsImages.bulkCreate(imageRecords, { transaction });
 
-                    // Format images for response
+                    // Format updated images for response
                     allImages.push(...createdImages.map(img => ({
                         id: img.id,
                         image: img.image_name,
@@ -1156,6 +1198,25 @@ const designController = () => {
                         is_product_listing: img.is_product_listing,
                     })));
                 }
+
+                // Keep existing images that were not in the payload (not updated)
+                const imagesToKeep = existingImages.filter(img => {
+                    // Check if this image was matched and updated
+                    const wasUpdated = matchedExistingImageIds.includes(img.id);
+                    return !wasUpdated;
+                });
+
+                // Add kept images to response
+                allImages.push(...imagesToKeep.map(img => ({
+                    id: img.id,
+                    image: img.image_name,
+                    image_url: constructImageUrl(img.image_name, 'design'),
+                    order: img.order,
+                    is_product_listing: img.is_product_listing,
+                })));
+
+                // Sort all images by order for consistent response
+                allImages.sort((a, b) => a.order - b.order);
 
                 // Fetch updated design
                 const updatedDesign = await Designs.findByPk(req.params.id, { transaction });
