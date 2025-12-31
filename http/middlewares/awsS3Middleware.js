@@ -97,10 +97,10 @@ let uploadInS3File = multer({
       const routeName = baseUrlParts[2] || "testS3";
       
       // Store files in public/ subfolder: public/{routeName}/csv/{filename}
-      const s3Key = `public/${routeName}/csv/${originalName}`;
+      const s3Key = `${routeName}/csv/${originalName}`;
       console.log("S3 Key:", s3Key);
       cb(null, s3Key);
-    },
+    }
   }),
 });
 let uploadInS3FileDownload = multer({
@@ -566,20 +566,14 @@ let deleteMultipleFromBucket = async (KeyArray) => {
  * @param {string} file
  * @returns
  */
-let getS3Object = async (file) => {
-  try {
-    // let fileStream = fs.createReadStreamStream(`${BUCKET_NAME}/${file}`);
-    const params = {
-      Bucket: BUCKET_NAME,
-      Key: `${BUCKET_NAME}/${file}`,
-    };
-    const command = new GetObjectCommand(params);
-    const data = await s3.send(command);
-    return data;
-  } catch (err) {
-    throw err;
-  }
+let getS3Object = async (key) => {
+  const params = {
+    Bucket: BUCKET_NAME,
+    Key: key, // ✅ ONLY key
+  };
+  return await s3.send(new GetObjectCommand(params));
 };
+
 
 /**
  * To upload a file to s3 bucket
@@ -591,17 +585,14 @@ let saveToBucket = async (file) => {
   try {
     const params = {
       Bucket: BUCKET_NAME,
-      Key: `${BUCKET_NAME}/${file.path}/${file.name}`,
+      Key: `${BUCKET_NAME}/${file.path}`,
       Body: file.data,
-      ACL: "public-read",
-      StorageClass: "REDUCED_REDUNDANCY",
       ContentType: file.type,
+      // ACL removed - bucket has "Block Public ACLs" enabled
+      // File will be accessible via presigned URL
     };
-    console.log(params,"55555");
-
     const command = new PutObjectCommand(params);
     const data = await s3.send(command);
-    console.log("upload result", data);
     return true;
   } catch (err) {
     throw err;

@@ -17,7 +17,7 @@ Router.get("/readOne/:id", authMiddleware, designController().readOne);
 //ecom endpoints
 Router.get("/variant-details-ecom", designController().variantDetailsForEcom);
 Router.get("/filter-dropdowns-ecom", designController().filterDropdownsEcom);
-
+Router.post("/upload-csv", authMiddleware, uploadInS3File.single('file'), designController().uploadCsv);
 
 module.exports = Router;
 
