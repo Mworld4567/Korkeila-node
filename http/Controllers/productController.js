@@ -50,6 +50,42 @@ const productController = () => {
                     });
                 }
 
+                // Validate product_name_array exists
+                if (!req.body.product_name_array || !Array.isArray(req.body.product_name_array) || req.body.product_name_array.length === 0) {
+                    await transaction.rollback();
+                    return res.status(409).json({
+                        success: false,
+                        message: "Please provide product_name_array",
+                    });
+                }
+
+                // Check if any product_name already exists for the same language_id
+                for (const language of req.body.product_name_array) {
+                    if (!language.language_id || !language.product_name) {
+                        await transaction.rollback();
+                        return res.status(409).json({
+                            success: false,
+                            message: "Please provide language_id and product_name for all entries",
+                        });
+                    }
+
+                    const existingTranslation = await ProductTranslation.findOne({
+                        where: {
+                            language_id: parseInt(language.language_id),
+                            product_name: language.product_name.trim(),
+                        },
+                        transaction
+                    });
+
+                    if (existingTranslation) {
+                        await transaction.rollback();
+                        return res.status(409).json({
+                            success: false,
+                            message: `Product name "${language.product_name}" already exists`,
+                        });
+                    }
+                }
+
                 // Check if product with same category_id, sub_category_id, and style_id already exists
                 const existingProduct = await Product.findOne({
                     where: {
@@ -60,13 +96,13 @@ const productController = () => {
                     transaction
                 });
 
-                if (existingProduct) {
-                    await transaction.rollback();
-                    return res.status(409).json({
-                        success: false,
-                        message: "Product with this category, sub-category, and style combination already exists",
-                    });
-                }
+                // if (existingProduct) {
+                //     await transaction.rollback();
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Product with this category, sub-category, and style combination already exists",
+                //     });
+                // }
 
                 // Handle image - store only filename (last part) in database
                 let product_image = null;
@@ -298,6 +334,37 @@ const productController = () => {
                         success: false,
                         message: "Please enter style ID",
                     });
+                }
+
+                // Update product translations if product_name_array is provided
+                if (req.body.product_name_array && Array.isArray(req.body.product_name_array) && req.body.product_name_array.length > 0) {
+                    // Check if any product_name already exists for the same language_id (excluding current product)
+                    for (const language of req.body.product_name_array) {
+                        if (!language.language_id || !language.product_name) {
+                            await transaction.rollback();
+                            return res.status(409).json({
+                                success: false,
+                                message: "Please provide language_id and product_name for all entries",
+                            });
+                        }
+
+                        const existingTranslation = await ProductTranslation.findOne({
+                            where: {
+                                language_id: parseInt(language.language_id),
+                                product_name: language.product_name.trim(),
+                                product_id: { [Op.ne]: parseInt(req.params.id) }, // Exclude current product
+                            },
+                            transaction
+                        });
+
+                        if (existingTranslation) {
+                            await transaction.rollback();
+                            return res.status(409).json({
+                                success: false,
+                                message: `Product name "${language.product_name}" already exists`,
+                            });
+                        }
+                    }
                 }
 
                 // Handle image - always extract only filename (last part), even from existing data
