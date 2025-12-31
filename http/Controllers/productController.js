@@ -595,7 +595,8 @@ const productController = () => {
                 // Fetch all designs for these products with full details
                 const allDesigns = await Designs.findAll({
                     where: {
-                        product_id: { [Op.in]: filteredProductIds }
+                        product_id: { [Op.in]: filteredProductIds },
+                        price_flag: { [Op.ne]: 0 }
                     },
                     include: [
                         {
