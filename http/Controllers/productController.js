@@ -20,6 +20,7 @@ const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 const Language = require("../../Models/Language");
+const { priceFlag } = require("../../config/globalVariable");
 
 const productController = () => {
     return {
@@ -715,13 +716,13 @@ const productController = () => {
                         const markup = markUpValue > 0 ? markUpValue : 1;
 
                         // Total price calculation
-                        const totalPrice = (metalCost + diamondCost) * markup;
+                        const xyz = (metalCost + diamondCost) * markup;
 
                         designsWithPrice.push({
                             product_id: productId,
                             design_id: design.id,
                             design: design,
-                            totalPrice: totalPrice
+                            totalPrice: xyz
                         });
                     }
                 }
@@ -791,7 +792,12 @@ const productController = () => {
                     }
 
                     // Add total_price to design data
-                    designData.total_price = "€ " + Math.round(lowestPriceDesign.totalPrice);
+                    // If price_flag is 0, show appointment message instead of total price
+                    if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
+                        designData.total_price = `Starting from € ${Math.round(lowestPriceDesign.totalPrice)}, please book an appointment`;
+                    } else {
+                        designData.total_price = "€ " + Math.round(lowestPriceDesign.totalPrice);
+                    }
 
                     return {
                         id: productId,

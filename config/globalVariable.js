@@ -24,8 +24,14 @@ const filterAvailable = {
     MultipleDiamond: 2,
 };
 
+const languageId = {
+    English: 1,
+    Finnish: 2,
+};
+
 module.exports = {
     globalAdminActions,
     priceFlag,
     filterAvailable,
+    languageId,
 };

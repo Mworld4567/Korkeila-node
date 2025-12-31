@@ -25,8 +25,9 @@ const { extractFilename, constructImageUrl } = require("../../helpers/imageHelpe
 const Language = require("../../Models/Language");
 const csvtojson = require("csvtojson");
 const fs = require("fs");
-const { getS3Object, deleteFromBucket } = require("../middlewares/awsS3Middleware");
-const { priceFlag, filterAvailable } = require("../../config/globalVariable");
+const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
+const { priceFlag, filterAvailable, languageId } = require("../../config/globalVariable");
+const converter = require("json-2-csv");
 
 const designController = () => {
     return {
@@ -2559,7 +2560,7 @@ const designController = () => {
                 const markup = markUpValue > 0 ? markUpValue : 1;
 
                 // Total price calculation
-                const totalPrice = (metalCost + diamondCost) * markup;
+                const xyz = (metalCost + diamondCost) * markup;
 
                 // Construct full image URLs for all design images
                 if (designDataJson.images && Array.isArray(designDataJson.images)) {
@@ -2587,7 +2588,12 @@ const designController = () => {
                 }
 
                 // Add total_price to design data
-                designDataJson.total_price = "€ " + Math.round(totalPrice);
+                // If price_flag is 0, show appointment message instead of total price
+                if (designDataJson.price_flag === 0 || designDataJson.price_flag === priceFlag.NotSet) {
+                    designDataJson.total_price = `Starting from € ${Math.round(xyz)}, please book an appointment`;
+                } else {
+                    designDataJson.total_price = "€ " + Math.round(xyz);
+                }
 
                 return res.status(200).json({
                     success: true,
@@ -2651,6 +2657,311 @@ const designController = () => {
                 return res.status(500).json({
                     success: false,
                     message: "Internal server error"
+                });
+            }
+        },
+        uploadCsv: async (req, res) => {
+            try {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please upload a CSV or Excel file (csv/xlsx/xls)",
+                    });
+                }
+
+                // Validate that file was properly uploaded
+                if (!req.file.key) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "File upload failed: S3 key is missing",
+                    });
+                }
+
+                const s3Key = req.file.key;
+                const path = await getS3Object(s3Key);
+                const csvString = await path.Body.transformToString("utf8");
+                await deleteFromBucket(s3Key);
+
+                const sources = await csvtojson().fromString(csvString);
+                if (
+                    !(
+                        Object.keys(sources[0])[0] == "Product Name" &&
+                        Object.keys(sources[0])[1] == "Design Variant Name(EN)" &&
+                        Object.keys(sources[0])[2] == "Design Variant Name(FN)" &&
+                        Object.keys(sources[0])[3] == "Description(EN)" &&
+                        Object.keys(sources[0])[4] == "Description(FN)" &&
+                        Object.keys(sources[0])[5] == "Metal name" &&
+                        Object.keys(sources[0])[6] == "Karat" &&
+                        Object.keys(sources[0])[7] == "Weight" &&
+                        Object.keys(sources[0])[8] == "Mark Up" &&
+                        Object.keys(sources[0])[9] == "Diamond Cut" &&
+                        Object.keys(sources[0])[10] == "Diamond Carat" &&
+                        Object.keys(sources[0])[11] == "Diamond Type" &&
+                        Object.keys(sources[0])[12] == "Diamond Clarity" &&
+                        Object.keys(sources[0])[13] == "Pcs" &&
+                        Object.keys(sources[0])[14] == "Diamond Position" &&
+                        Object.keys(sources[0])[15] == "Position Visible" &&
+                        Object.keys(sources[0])[16] == "Price flag"
+                    )
+                ) {
+                    return res.status(422).json({
+                        success: false,
+                        message: "Invalid File Format"
+                    });
+                }
+                let designArray = [];
+                let designTranslationArray = [];
+                let finalList = [];
+
+                for (const x of sources) {
+                    let designObj = {};
+                    let designTranslationObjEN = {};
+                    let designTranslationObjFN = {};
+                    let designMoldObj = {};
+                    let duplicationString = [];
+                    let validationSting = [];
+                    if (x["Product Name"].trim() !== "") {
+                        if (x["Product Name"].trim() !== "") {
+                            const product = await Product.findOne({
+                                include: [
+                                    {
+                                        model: ProductTranslation,
+                                        as: 'product_translations',
+                                        where: {
+                                            language_id: languageId.English,
+                                        }
+                                    }
+                                ]
+                            });
+                            if (!product) {
+                                validationSting.push("Product name not found");
+                            }
+                            designObj.product_id = product.id;
+                            designObj.category_id = product.category_id;
+                            designObj.sub_category_id = product.sub_category_id;
+                        }
+                        // Process English translation
+                        if (x["Design Variant Name(EN)"].trim() !== "") {
+                            designObj.design_variant_name = x["Design Variant Name(EN)"].trim();
+                            designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
+                            designTranslationObjEN.language_id = languageId.English;
+                        } else {
+                            validationSting.push("Design variant name(EN) is required");
+                        }
+                        if (x["Description(EN)"].trim() !== "") {
+                            designTranslationObjEN.description = x["Description(EN)"].trim();
+                        } else {
+                            validationSting.push("Description(EN) is required");
+                        }
+
+                        // Process Finnish translation
+                        if (x["Design Variant Name(FN)"].trim() !== "") {
+                            designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
+                            designTranslationObjFN.language_id = languageId.Finnish;
+                        } else {
+                            validationSting.push("Design variant name(FN) is required");
+                        }
+                        if (x["Description(FN)"].trim() !== "") {
+                            designTranslationObjFN.description = x["Description(FN)"].trim();
+                        } else {
+                            validationSting.push("Description(FN) is required");
+                        }
+                        if (x["Metal name"].trim() !== "") {
+                            const metal = await Metal.findOne({
+                                where: {
+                                    metal_name: x["Metal name"].trim(),
+                                }
+                            });
+                            if (metal) {
+                                if (x["Karat"].trim() !== "") {
+                                    const karat = await Karat.findOne({
+                                        where: {
+                                            karat: x["Karat"].trim(),
+                                        }
+                                    });
+                                    if (karat) {
+                                        const MetalRateId = await MetalRateMaster.findOne({
+                                            where: {
+                                                karat_id: karat.id,
+                                                metal_id: metal.id,
+                                            }
+                                        });
+                                        if (MetalRateId) {
+                                            designObj.metal_rate_id = MetalRateId.id;
+                                        } else {
+                                            validationSting.push("Metal rate not found");
+                                        }
+                                    } else {
+                                        validationSting.push("Karat not found");
+                                    }
+                                } else {
+                                    validationSting.push("Karat is required");
+                                }
+                            } else {
+                                validationSting.push("Metal name not found");
+                            }
+                        } else {
+                            validationSting.push("Metal name is required");
+                        }
+
+                        if (x["Weight"].trim() !== "") {
+                            designObj.metal_weight = x["Weight"].trim();
+                        }
+                        if (x["Mark Up"].trim() !== "") {
+                            designObj.mark_up = x["Mark Up"].trim();
+                        }
+                        if (x["Diamond Cut"].trim() !== "") {
+                            const diamondCut = await CutMaster.findOne({
+                                where: {
+                                    cut_name: x["Diamond Cut"].trim(),
+                                }
+                            });
+                            if (diamondCut) {
+                                designObj.cut_master_id = diamondCut.id;
+                            } else {
+                                validationSting.push("Diamond cut not found");
+                            }
+                        }
+                        if (x["Diamond Carat"].trim() !== "" && x["Diamond Type"].trim() !== "" && x["Diamond Clarity"].trim() !== "") {
+
+                        }
+                        if (x["Pcs"].trim() !== "") {
+                            designObj.pcs = x["Pcs"].trim();
+                        }
+                        if (x["Diamond Position"].trim() !== "") {
+                            if (x["Diamond Position"].trim() == "Center Diamond") {
+                                designObj.diamond_position = 1;
+                            } else {
+                                designObj.diamond_position = 0;
+                            }
+                        }
+                        if (x["Position Visible"].trim() !== "") {
+                            designObj.position_visible = x["Position Visible"].trim();
+                        }
+                        if (x["Price flag"].trim() !== "") {
+                            designObj.price_flag = x["Price flag"].trim();
+                        }
+                        if (validationSting.length !== 0 || duplicationString.length !== 0) {
+                            x.success = "false";
+                            x.message =
+                                validationSting.length == 0
+                                    ? `DuplicationError:${duplicationString.toString()}`
+                                    : duplicationString.length == 0
+                                        ? `ValidationError:${validationSting.toString()}`
+                                        : `DuplicationError:${duplicationString.toString()} & ValidationError:${validationSting.toString()}`;
+                            finalList.push(x);
+                        }
+                        if (validationSting.length == 0 && duplicationString.length == 0) {
+                            x.success = "true";
+                            x.message = "verified";
+                            finalList.push(x);
+
+                            if (
+                                Object.keys(designObj).length !== 0 &&
+                                designObj.constructor === Object
+                            ) {
+                                designArray.push(designObj);
+                            }
+                            // Push both English and Finnish translations
+                            if (
+                                Object.keys(designTranslationObjEN).length !== 0 &&
+                                designTranslationObjEN.constructor === Object
+                            ) {
+                                designTranslationArray.push(designTranslationObjEN);
+                            }
+                            if (
+                                Object.keys(designTranslationObjFN).length !== 0 &&
+                                designTranslationObjFN.constructor === Object
+                            ) {
+                                designTranslationArray.push(designTranslationObjFN);
+                            }
+                        }
+                    }
+                }
+                //if there is no error then data will ne inserted
+                const findingError = finalList.filter((x) => {
+                    return x.success === "false";
+                });
+                if (findingError.length === 0) {
+                    // Use transaction for atomic operations
+                    const transaction = await sequelize.transaction();
+                    try {
+                        // Validate array lengths match (should be 2 translations per design)
+                        if (designArray.length * 2 !== designTranslationArray.length) {
+                            await transaction.rollback();
+                            return res.status(500).json({
+                                success: false,
+                                message: "Internal error: Design and translation arrays length mismatch. Expected 2 translations per design."
+                            });
+                        }
+
+                        // Insert designs using bulkCreate
+                        const createdDesigns = await Designs.bulkCreate(designArray, {
+                            transaction
+                        });
+
+                        // Map design_id to each translation record
+                        // Each design has 2 translations (EN and FN) at consecutive indices
+                        const translationRecordsWithDesignId = designTranslationArray.map((translation, index) => {
+                            // Calculate which design this translation belongs to (every 2 translations = 1 design)
+                            const designIndex = Math.floor(index / 2);
+                            return {
+                                ...translation,
+                                design_id: createdDesigns[designIndex].id
+                            };
+                        });
+
+                        // Insert design translations using bulkCreate
+                        await DesignTranslation.bulkCreate(translationRecordsWithDesignId, {
+                            transaction
+                        });
+
+                        // Commit transaction
+                        await transaction.commit();
+
+                        return res.status(200).send({
+                            success: true,
+                            message: "CSV/Excel file uploaded and data inserted successfully",
+                            data: {
+                                designArray: createdDesigns.map(design => design.toJSON()),
+                                designTranslationArray: translationRecordsWithDesignId,
+                            },
+                        });
+                    } catch (insertError) {
+                        // Rollback transaction on error
+                        await transaction.rollback();
+                        throw insertError;
+                    }
+                } else {
+                    const csv = await converter.json2csvAsync(finalList);
+                    let writeNewCSV = {
+                        name: `${req.file.originalname}`,
+                        type: "text/csv",
+                        data: csv,
+                        path: ["design", "csv", `${req.file.originalname}`].join("/"),
+                    };
+                    // replace new file with error log
+                    await saveToBucket(writeNewCSV);
+
+                    // Generate presigned URL since public ACL is blocked by bucket settings
+                    const s3Key = `${process.env.AWS_BUCKET_NAME}/design/csv/${req.file.originalname}`;
+                    const url = await getPresignedUrl(s3Key, 3600 * 24 * 7); // 7 days expiry
+
+                    return res.status(200).send({
+                        success: false,
+                        csvError: 1,
+                        url,
+                        message:
+                            "Please solve error first then upload " + req.file.originalname,
+                    });
+                }
+            } catch (error) {
+                console.log("S3 CSV Upload Error:", error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to upload CSV/Excel file to S3",
+                    error: error.message,
                 });
             }
         },
