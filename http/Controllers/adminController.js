@@ -219,20 +219,6 @@ const adminController = () => {
                     });
                 }
 
-                const data = {
-                    email: req.body.email,
-                    password: req.body.password,
-                    status: req.body.status,
-                };
-
-                if (req.body.username && req.body.username !== "") {
-                    data.username = req.body.username;
-                }
-                
-                if (req.body.mobile_number && req.body.mobile_number !== "") {
-                    data.mobile_number = req.body.mobile_number;
-                }
-
                 if (!req.body.password || req.body.password === "") {
                     return res.status(409).json({
                         success: false,
@@ -251,8 +237,22 @@ const adminController = () => {
                 const salt = await bcrypt.genSalt(10);
                 const securedPassword = await bcrypt.hash(req.body.password, salt);
 
+                const data = {
+                    email: req.body.email,
+                    password: securedPassword,
+                    status: req.body.status,
+                };
+
+                if (req.body.username && req.body.username !== "") {
+                    data.username = req.body.username;
+                }
+                
+                if (req.body.mobile_number && req.body.mobile_number !== "") {
+                    data.mobile_number = req.body.mobile_number;
+                }
+
                 await Admin.update(
-                    { password: securedPassword, ...data },
+                    data,
                     { where: { id: req.params.id }, transaction }
                 );
 
@@ -268,7 +268,7 @@ const adminController = () => {
 
                 return res.status(200).json({
                     success: true,
-                    message: "Password changed successfully",
+                    message: "User updated successfully",
                 });
             } catch (error) {
                 console.log(error);
