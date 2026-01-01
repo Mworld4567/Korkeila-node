@@ -2307,13 +2307,22 @@ const designController = () => {
                         id: carat.id,
                         carat: parseFloat(carat.carat) || 0
                     })),
-                    metals: metals.map(metal => ({
-                        id: metal.id,
-                        name: metalTranslationsMap.has(metal.id)
+                    metals: metals.map(metal => {
+                        let metalName = metalTranslationsMap.has(metal.id)
                             ? metalTranslationsMap.get(metal.id)
-                            : metal.metal_name,
-                        code: metal.metal_code
-                    })),
+                            : metal.metal_name;
+
+                        // Check if name contains "Platinum" (case-insensitive) and convert to lowercase
+                        if (metalName && metalName.toLowerCase().includes('platinum')) {
+                            metalName = metalName.toLowerCase();
+                        }
+
+                        return {
+                            id: metal.id,
+                            name: metalName,
+                            code: metal.metal_code
+                        };
+                    }),
                     karats: karats.map(karat => ({
                         id: karat.id,
                         karat: karat.karat,
