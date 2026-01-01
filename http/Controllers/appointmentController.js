@@ -94,6 +94,19 @@ const appointmentController = () => {
                 // Save appointment to database
                 const appointment = await Appointment.create(appointmentData, { transaction });
 
+                // Get language_id from params (body or query) and determine message
+                const language_id = req.body.language_id || req.query.language_id || globalVariable.languageId.English;
+                let inquiryMessage;
+                
+                if (language_id == globalVariable.languageId.English || language_id == 1) {
+                    inquiryMessage = "Thank you for your inquiry. We will be in touch soon.";
+                } else if (language_id == globalVariable.languageId.Finnish || language_id == 2) {
+                    inquiryMessage = "Kiitos yhteydenotostasi. Olemme teihin yhteydessä mahdollisimman pian.";
+                } else {
+                    // Default to English if language_id doesn't match
+                    inquiryMessage = "Thank you for your inquiry. We will be in touch soon.";
+                }
+
                 // Prepare email content
                 const emailSubject = "Appointment Confirmation";
                 const emailHtml = `
@@ -102,7 +115,7 @@ const appointmentController = () => {
                             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                                 <h2 style="color: #4a5568;">Appointment Confirmation</h2>
                                 <p>Dear ${appointmentData.first_name} ${appointmentData.last_name},</p>
-                                <p>Thank you for scheduling an appointment with us. Your appointment details are as follows:</p>
+                                <p>${inquiryMessage}</p>
                                 <div style="background-color: #f7fafc; padding: 15px; border-radius: 5px; margin: 20px 0;">
                                     <p><strong>Name:</strong> ${appointmentData.first_name} ${appointmentData.last_name}</p>
                                     <p><strong>Email:</strong> ${appointmentData.email}</p>
@@ -142,6 +155,52 @@ const appointmentController = () => {
                         time_slot: appointment.time_slot,
                         description: appointment.description || null,
                     },
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
+        getTimeSlots: async (req, res) => {
+            try {
+                const timeSlots = [];
+                const startHour = 10;
+                const endHour = 18;
+                const slotDuration = 30;
+
+                for (let hour = startHour; hour < endHour; hour++) {
+                    for (let minute = 0; minute < 60; minute += slotDuration) {
+                        const startTime = new Date();
+                        startTime.setHours(hour, minute, 0, 0);
+                        
+                        const endTime = new Date();
+                        endTime.setHours(hour, minute + slotDuration, 0, 0);
+                        
+                        const formatTime = (date) => {
+                            let hours = date.getHours();
+                            const minutes = date.getMinutes();
+                            const ampm = hours >= 12 ? 'PM' : 'AM';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12;
+                            const minutesStr = minutes < 10 ? '0' + minutes : minutes;
+                            return `${hours}:${minutesStr} ${ampm}`;
+                        };
+
+                        const startTimeFormatted = formatTime(startTime);
+                        const endTimeFormatted = formatTime(endTime);
+
+                        timeSlots.push(`${startTimeFormatted} to ${endTimeFormatted}`);
+                    }
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Time slots retrieved successfully",
+                    data: timeSlots
                 });
             } catch (error) {
                 console.log(error);

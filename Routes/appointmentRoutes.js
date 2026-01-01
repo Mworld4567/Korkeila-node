@@ -4,6 +4,7 @@ const appointmentController = require("../http/Controllers/appointmentController
 const transactionMiddleware = require("../http/middlewares/transactionMiddleware");
 
 Router.post("/create", transactionMiddleware(appointmentController().create));
+Router.get("/timeslots", appointmentController().getTimeSlots);
 
 
 module.exports = Router;
