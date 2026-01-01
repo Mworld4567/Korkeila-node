@@ -353,6 +353,9 @@ const designController = () => {
                     mark_up: design.mark_up,
                     diamond_rate_id: design.diamond_rate_id,
                     diamond_design_detail: formattedDiamondDetails,
+                    is_filter_available: design.is_filter_available,
+                    price_flag: design.price_flag,
+                    sku_number: design.sku_number,
                     images: imagesList.map(img => ({
                         id: img.id,
                         image: img.image_name,
