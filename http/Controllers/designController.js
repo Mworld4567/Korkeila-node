@@ -35,9 +35,17 @@ const designController = () => {
             try {
                 const { Op } = require("sequelize");
 
-                // Fetch all designs
-                const designs = await Designs.findAll({
-                    order: [['id', 'DESC']]
+                // Get pagination parameters from query
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+                const offset = (page - 1) * limit;
+
+
+                // Get total count and fetch designs with pagination
+                const { count, rows: designs } = await Designs.findAndCountAll({
+                    order: [['id', 'DESC']],
+                    limit: limit,
+                    offset: offset
                 });
 
                 if (designs.length === 0) {
@@ -45,6 +53,10 @@ const designController = () => {
                         success: true,
                         message: "Designs fetched successfully",
                         data: [],
+                        current_page: page,
+                        per_page: limit,
+                        total: count,
+                        total_pages: Math.ceil(count / limit)
                     });
                 }
 
@@ -240,6 +252,10 @@ const designController = () => {
                     success: true,
                     message: "Designs fetched successfully",
                     data: responseData,
+                    current_page: page,
+                    per_page: limit,
+                    total: count,
+                    total_pages: Math.ceil(count / limit)
                 });
 
             } catch (error) {
