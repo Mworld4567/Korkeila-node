@@ -85,7 +85,8 @@ const designController = () => {
                     subCategoriesList,
                     metalRatesList,
                     diamondRatesList,
-                    cutMastersList
+                    cutMastersList,
+                    designTranslationsList
                 ] = await Promise.all([
                     DesignsImages.findAll({
                         where: { design_id: { [Op.in]: designIds } }
@@ -116,6 +117,15 @@ const designController = () => {
                     }),
                     CutMaster.findAll({
                         where: { id: { [Op.in]: cutMasterIds } }
+                    }),
+                    DesignTranslation.findAll({
+                        where: { 
+                            design_id: { [Op.in]: designIds },
+                            language_id: languageId.English
+                        },
+                        include: [
+                            { model: Language, as: 'language', attributes: ['id', 'language_name'] }
+                        ]
                     })
                 ]);
 
@@ -126,6 +136,7 @@ const designController = () => {
                 const metalRatesMap = new Map(metalRatesList.map(mr => [mr.id, mr]));
                 const diamondRatesMap = new Map(diamondRatesList.map(dr => [dr.id, dr]));
                 const cutMastersMap = new Map(cutMastersList.map(cm => [cm.id, cm]));
+                const designTranslationsMap = new Map(designTranslationsList.map(dt => [dt.design_id, dt]));
                 const diamondDetailsMap = new Map();
                 const imagesMap = new Map();
 
@@ -200,10 +211,14 @@ const designController = () => {
                     // Total price calculation
                     const totalPrice = (metalCost + diamondCost) * markup;
 
+                    // Get English design translation
+                    const englishTranslation = designTranslationsMap.get(design.id);
+
                     return {
                         id: design.id,
                         product_id: design.product_id,
                         product_name: design.design_variant_name,
+                        design_variant_name: englishTranslation?.design_variant_name || null,
                         metal_rate_id: design.metal_rate_id,
                         metal_rate_name: metalRate ? `${metalRate.metal?.metal_name || ""} - ${metalRate.karat?.karat || ""}` : "",
                         weight: design.metal_weight,
