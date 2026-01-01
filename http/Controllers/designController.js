@@ -2435,34 +2435,121 @@ const designController = () => {
                     });
                 }
 
-                const caratValue = parseFloat(carat);
-                const tolerance = 0.000001; // Small tolerance for floating-point comparison
-                const diamondmasterFilter = await DiamondMaster.findOne({
-                    where: {
-                        carat: {
-                            [Op.between]: [caratValue - tolerance, caratValue + tolerance]
-                        },
-                        deleted_at: null
-                    }
-                });
-                if (!diamondmasterFilter) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Diamond master not found"
-                    });
-                }
-                const diamondrateFilter = await DiamondRate.findOne({
-                    where: {
-                        diamond_type_id: parseInt(diamondTypeId),
-                        clarity_id: parseInt(clarityId),
-                        diamond_master_id: diamondmasterFilter.id
-                    }
-                });
+                // Check if diamond filters are provided (all required for diamond filtering)
+                const hasDiamondFilters = diamondTypeId && clarityId && carat;
+                let diamondrateFilter = null;
 
-                if (!diamondrateFilter) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Diamond rate not found"
+                if (hasDiamondFilters) {
+                    const caratValue = parseFloat(carat);
+                    const tolerance = 0.000001; // Small tolerance for floating-point comparison
+                    const diamondmasterFilter = await DiamondMaster.findOne({
+                        where: {
+                            carat: {
+                                [Op.between]: [caratValue - tolerance, caratValue + tolerance]
+                            },
+                            deleted_at: null
+                        }
+                    });
+                    if (!diamondmasterFilter) {
+                        return res.status(404).json({
+                            success: false,
+                            message: "Diamond master not found"
+                        });
+                    }
+                    diamondrateFilter = await DiamondRate.findOne({
+                        where: {
+                            diamond_type_id: parseInt(diamondTypeId),
+                            clarity_id: parseInt(clarityId),
+                            diamond_master_id: diamondmasterFilter.id
+                        }
+                    });
+
+                    if (!diamondrateFilter) {
+                        return res.status(404).json({
+                            success: false,
+                            message: "Diamond rate not found"
+                        });
+                    }
+                }
+
+                // Build includes array
+                const includes = [
+                    {
+                        model: MetalRateMaster,
+                        as: 'metal_rate',
+                        attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                        include: [
+                            { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                            { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                        ]
+                    },
+                    {
+                        model: DesignsImages,
+                        as: 'images',
+                        attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                        separate: true,
+                        order: [['id', 'ASC']]
+                    },
+                    {
+                        model: Product,
+                        as: 'product',
+                        include: [
+                            { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                            { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                            { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                        ]
+                    },
+                    {
+                        model: DesignTranslation,
+                        as: 'design_translations',
+                        attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                        required: false,
+                        include: [
+                            { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                        ]
+                    }
+                ];
+
+                // Add diamond details include conditionally
+                if (hasDiamondFilters && diamondrateFilter) {
+                    includes.push({
+                        model: DesignsDiamondDetails,
+                        as: 'diamond_details',
+                        where: {
+                            diamond_rate_id: diamondrateFilter.id
+                        },
+                        required: false,
+                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                        include: [
+                            { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                            {
+                                model: DiamondRate,
+                                as: 'diamond_rate',
+                                attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                include: [
+                                    { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                ]
+                            }
+                        ]
+                    });
+                } else {
+                    // Include all diamond details if no filter is provided (for plain designs)
+                    includes.push({
+                        model: DesignsDiamondDetails,
+                        as: 'diamond_details',
+                        required: false,
+                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                        include: [
+                            { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                            {
+                                model: DiamondRate,
+                                as: 'diamond_rate',
+                                attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                include: [
+                                    { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                ]
+                            }
+                        ]
                     });
                 }
 
@@ -2471,61 +2558,7 @@ const designController = () => {
                         product_id: parseInt(productId),
                         metal_rate_id: MetalrateFilter.id,
                     },
-                    include: [
-                        {
-                            model: MetalRateMaster,
-                            as: 'metal_rate',
-                            attributes: ['id', 'metal_id', 'karat_id', 'rate'],
-                            include: [
-                                { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
-                                { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
-                            ]
-                        },
-                        {
-                            model: DesignsDiamondDetails,
-                            as: 'diamond_details',
-                            where: {
-                                diamond_rate_id: diamondrateFilter.id
-                            },
-                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
-                            include: [
-                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
-                                {
-                                    model: DiamondRate,
-                                    as: 'diamond_rate',
-                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
-                                    include: [
-                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            model: DesignsImages,
-                            as: 'images',
-                            attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-                            separate: true,
-                            order: [['id', 'ASC']]
-                        },
-                        {
-                            model: Product,
-                            as: 'product',
-                            include: [
-                                { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
-                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
-                                { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
-                            ]
-                        },
-                        {
-                            model: DesignTranslation,
-                            as: 'design_translations',
-                            attributes: ['id', 'language_id', 'design_variant_name', 'description'],
-                            required: false,
-                            include: [
-                                { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
-                            ]
-                        }
-                    ]
+                    include: includes
                 });
                 if (!designData) {
                     return res.status(404).json({
