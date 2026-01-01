@@ -20,7 +20,7 @@ const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 const Language = require("../../Models/Language");
-const { priceFlag } = require("../../config/globalVariable");
+const { priceFlag, languageId } = require("../../config/globalVariable");
 
 const productController = () => {
     return {
@@ -219,6 +219,16 @@ const productController = () => {
                     if (itemData.category && itemData.category.image) {
                         itemData.category.image = constructImageUrl(itemData.category.image, 'categoryMaster');
                     }
+                    // Extract product_name from English translation
+                    if (itemData.product_translations && Array.isArray(itemData.product_translations)) {
+                        const englishTranslation = itemData.product_translations.find(
+                            translation => translation.language && translation.language.id === languageId.English
+                        );
+                        if (englishTranslation) {
+                            itemData.product_name = englishTranslation.product_name;
+                        }
+                    }
+                    delete itemData.product_translations;
                     return itemData;
                 });
 
