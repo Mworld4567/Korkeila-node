@@ -702,6 +702,75 @@ const designController = () => {
                         order: img.order,
                         is_product_listing: img.is_product_listing,
                     })));
+
+                    // Map images to designs with same metal but different karat
+                    // Get the metal_rate_id from the new design
+                    const currentMetalRateId = parseInt(req.body.metal_rate_id);
+
+                    // Fetch metal_rate_masters to get metal_id and karat_id
+                    const currentMetalRate = await MetalRateMaster.findByPk(currentMetalRateId, { transaction });
+
+                    if (currentMetalRate) {
+                        const currentMetalId = currentMetalRate.metal_id;
+                        const currentKaratId = currentMetalRate.karat_id;
+                        const currentProductId = parseInt(req.body.product_id);
+
+                        // Find all other designs with same product_id, same metal_id, but different karat_id
+                        const relatedMetalRates = await MetalRateMaster.findAll({
+                            where: {
+                                metal_id: currentMetalId,
+                                karat_id: { [Op.ne]: currentKaratId }
+                            },
+                            attributes: ['id'],
+                            transaction
+                        });
+
+                        if (relatedMetalRates.length > 0) {
+                            const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
+
+                            // Find designs with same product_id and related metal_rate_ids
+                            const relatedDesigns = await Designs.findAll({
+                                where: {
+                                    product_id: currentProductId,
+                                    metal_rate_id: { [Op.in]: relatedMetalRateIds }
+                                },
+                                attributes: ['id'],
+                                transaction
+                            });
+
+                            // Copy images to related designs
+                            if (relatedDesigns.length > 0) {
+                                const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                // First, delete existing images for related designs
+                                await DesignsImages.destroy({
+                                    where: {
+                                        design_id: { [Op.in]: relatedDesignIds }
+                                    },
+                                    transaction
+                                });
+
+                                // Then, prepare new image records
+                                const imagesToCopy = [];
+
+                                for (const relatedDesign of relatedDesigns) {
+                                    for (const imageRecord of imageRecords) {
+                                        imagesToCopy.push({
+                                            design_id: relatedDesign.id,
+                                            image_name: imageRecord.image_name,
+                                            order: imageRecord.order,
+                                            is_product_listing: imageRecord.is_product_listing,
+                                        });
+                                    }
+                                }
+
+                                // Bulk create images for related designs
+                                if (imagesToCopy.length > 0) {
+                                    await DesignsImages.bulkCreate(imagesToCopy, { transaction });
+                                }
+                            }
+                        }
+                    }
                 } else if (req.files && req.files.length > 0) {
                     // Fallback: if no design_images array provided but files are uploaded, create records with default order
                     const imageRecords = req.files.map((file, index) => {
@@ -722,6 +791,75 @@ const designController = () => {
                         order: img.order,
                         is_product_listing: img.is_product_listing,
                     })));
+
+                    // Map images to designs with same metal but different karat
+                    // Get the metal_rate_id from the new design
+                    const currentMetalRateId = parseInt(req.body.metal_rate_id);
+
+                    // Fetch metal_rate_masters to get metal_id and karat_id
+                    const currentMetalRate = await MetalRateMaster.findByPk(currentMetalRateId, { transaction });
+
+                    if (currentMetalRate) {
+                        const currentMetalId = currentMetalRate.metal_id;
+                        const currentKaratId = currentMetalRate.karat_id;
+                        const currentProductId = parseInt(req.body.product_id);
+
+                        // Find all other designs with same product_id, same metal_id, but different karat_id
+                        const relatedMetalRates = await MetalRateMaster.findAll({
+                            where: {
+                                metal_id: currentMetalId,
+                                karat_id: { [Op.ne]: currentKaratId }
+                            },
+                            attributes: ['id'],
+                            transaction
+                        });
+
+                        if (relatedMetalRates.length > 0) {
+                            const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
+
+                            // Find designs with same product_id and related metal_rate_ids
+                            const relatedDesigns = await Designs.findAll({
+                                where: {
+                                    product_id: currentProductId,
+                                    metal_rate_id: { [Op.in]: relatedMetalRateIds }
+                                },
+                                attributes: ['id'],
+                                transaction
+                            });
+
+                            // Copy images to related designs
+                            if (relatedDesigns.length > 0) {
+                                const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                // First, delete existing images for related designs
+                                await DesignsImages.destroy({
+                                    where: {
+                                        design_id: { [Op.in]: relatedDesignIds }
+                                    },
+                                    transaction
+                                });
+
+                                // Then, prepare new image records
+                                const imagesToCopy = [];
+
+                                for (const relatedDesign of relatedDesigns) {
+                                    for (const imageRecord of imageRecords) {
+                                        imagesToCopy.push({
+                                            design_id: relatedDesign.id,
+                                            image_name: imageRecord.image_name,
+                                            order: imageRecord.order,
+                                            is_product_listing: imageRecord.is_product_listing,
+                                        });
+                                    }
+                                }
+
+                                // Bulk create images for related designs
+                                if (imagesToCopy.length > 0) {
+                                    await DesignsImages.bulkCreate(imagesToCopy, { transaction });
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Prepare response data
@@ -1232,6 +1370,76 @@ const designController = () => {
                         order: img.order,
                         is_product_listing: img.is_product_listing,
                     })));
+
+                    // Map images to designs with same metal but different karat
+                    // Get the metal_rate_id from the updated design
+                    const currentMetalRateId = parseInt(req.body.metal_rate_id);
+
+                    // Fetch metal_rate_masters to get metal_id and karat_id
+                    const currentMetalRate = await MetalRateMaster.findByPk(currentMetalRateId, { transaction });
+
+                    if (currentMetalRate) {
+                        const currentMetalId = currentMetalRate.metal_id;
+                        const currentKaratId = currentMetalRate.karat_id;
+                        const currentProductId = parseInt(req.body.product_id);
+
+                        // Find all other designs with same product_id, same metal_id, but different karat_id
+                        const relatedMetalRates = await MetalRateMaster.findAll({
+                            where: {
+                                metal_id: currentMetalId,
+                                karat_id: { [Op.ne]: currentKaratId }
+                            },
+                            attributes: ['id'],
+                            transaction
+                        });
+
+                        if (relatedMetalRates.length > 0) {
+                            const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
+
+                            // Find designs with same product_id and related metal_rate_ids
+                            const relatedDesigns = await Designs.findAll({
+                                where: {
+                                    product_id: currentProductId,
+                                    metal_rate_id: { [Op.in]: relatedMetalRateIds },
+                                    id: { [Op.ne]: parseInt(req.params.id) } // Exclude current design
+                                },
+                                attributes: ['id'],
+                                transaction
+                            });
+
+                            // Copy images to related designs
+                            if (relatedDesigns.length > 0) {
+                                const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                // First, delete existing images for related designs
+                                await DesignsImages.destroy({
+                                    where: {
+                                        design_id: { [Op.in]: relatedDesignIds }
+                                    },
+                                    transaction
+                                });
+
+                                // Then, prepare new image records
+                                const imagesToCopy = [];
+
+                                for (const relatedDesign of relatedDesigns) {
+                                    for (const imageRecord of imageRecords) {
+                                        imagesToCopy.push({
+                                            design_id: relatedDesign.id,
+                                            image_name: imageRecord.image_name,
+                                            order: imageRecord.order,
+                                            is_product_listing: imageRecord.is_product_listing,
+                                        });
+                                    }
+                                }
+
+                                // Bulk create images for related designs
+                                if (imagesToCopy.length > 0) {
+                                    await DesignsImages.bulkCreate(imagesToCopy, { transaction });
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Keep existing images that were not in the payload (not updated)
@@ -2904,31 +3112,35 @@ const designController = () => {
                             }
                         }
                         if (x["Diamond Carat"].trim() !== "" && x["Diamond Type"].trim() !== "" && x["Diamond Clarity"].trim() !== "") {
-                            const DiamondMaster = await DiamondMaster.findOne({
+                            const caratValue = parseFloat(x["Diamond Carat"].trim());
+                            const epsilon = 0.0001; // Small tolerance for floating-point comparison
+                            const DiamondMasterDetails = await DiamondMaster.findOne({
                                 where: {
-                                    carat: x["Diamond Carat"].trim(),
+                                    carat: {
+                                        [Op.between]: [caratValue - epsilon, caratValue + epsilon]
+                                    }
                                 }
                             });
-                            const DiamondType = await DiamondType.findOne({
+                            const DiamondTypeDetails = await DiamondType.findOne({
                                 where: {
                                     type_name: x["Diamond Type"].trim(),
                                 }
                             });
-                            const DiamondClarity = await DiamondClarity.findOne({
+                            const DiamondClarityDetails = await DiamondClarity.findOne({
                                 where: {
                                     clarity: x["Diamond Clarity"].trim(),
                                 }
                             });
-                            if (DiamondMaster && DiamondType && DiamondClarity) {
-                                const DiamondRate = await DiamondRate.findOne({
+                            if (DiamondMasterDetails && DiamondTypeDetails && DiamondClarityDetails) {
+                                const DiamondRateDetails = await DiamondRate.findOne({
                                     where: {
-                                        diamond_master_id: DiamondMaster.id,
-                                        diamond_type_id: DiamondType.id,
-                                        clarity_id: DiamondClarity.id,
+                                        diamond_master_id: DiamondMasterDetails.id,
+                                        diamond_type_id: DiamondTypeDetails.id,
+                                        clarity_id: DiamondClarityDetails.id,
                                     }
                                 });
-                                if (DiamondRate) {
-                                    designDiamondDetailsObj.diamond_rate_id = DiamondRate.id;
+                                if (DiamondRateDetails) {
+                                    designDiamondDetailsObj.diamond_rate_id = DiamondRateDetails.id;
                                     // designDiamondDetailsObj.cut_master_id = diamondCut.id
                                     designDiamondDetailsObj.pcs = x["Pcs"].trim();
                                 } else {
