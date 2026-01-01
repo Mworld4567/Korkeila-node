@@ -18,6 +18,7 @@ const Designs = sequelize.define(
         mark_up: { type: Sequelize.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
         is_filter_available: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
         price_flag: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 0 },
+        sku_number: { type: Sequelize.STRING(255), allowNull: true },
     },
     {
         timestamps: false,

@@ -2683,6 +2683,7 @@ const designController = () => {
                 await deleteFromBucket(s3Key);
 
                 const sources = await csvtojson().fromString(csvString);
+                // return res.json(sources);
                 if (
                     !(
                         Object.keys(sources[0])[0] == "Product Name" &&
@@ -2711,31 +2712,36 @@ const designController = () => {
                 }
                 let designArray = [];
                 let designTranslationArray = [];
+                let designDiamondDetailsArray = [];
                 let finalList = [];
+                // Store metal and karat info for SKU generation
+                let skuInfoArray = [];
 
                 for (const x of sources) {
                     let designObj = {};
                     let designTranslationObjEN = {};
                     let designTranslationObjFN = {};
-                    let designMoldObj = {};
+                    let designDiamondDetailsObj = {};
                     let duplicationString = [];
                     let validationSting = [];
+                    let metalCode = null;
+                    let karatValue = null;
                     if (x["Product Name"].trim() !== "") {
-                        if (x["Product Name"].trim() !== "") {
-                            const product = await Product.findOne({
-                                include: [
-                                    {
-                                        model: ProductTranslation,
-                                        as: 'product_translations',
-                                        where: {
-                                            language_id: languageId.English,
-                                        }
+                        const product = await Product.findOne({
+                            include: [
+                                {
+                                    model: ProductTranslation,
+                                    as: 'product_translations',
+                                    where: {
+                                        language_id: languageId.English,
+                                        product_name: x["Product Name"].trim(),
                                     }
-                                ]
-                            });
-                            if (!product) {
-                                validationSting.push("Product name not found");
-                            }
+                                }
+                            ]
+                        });
+                        if (!product) {
+                            validationSting.push("Product name not found");
+                        } else {
                             designObj.product_id = product.id;
                             designObj.category_id = product.category_id;
                             designObj.sub_category_id = product.sub_category_id;
@@ -2773,6 +2779,7 @@ const designController = () => {
                                 }
                             });
                             if (metal) {
+                                metalCode = metal.metal_code || null;
                                 if (x["Karat"].trim() !== "") {
                                     const karat = await Karat.findOne({
                                         where: {
@@ -2780,6 +2787,7 @@ const designController = () => {
                                         }
                                     });
                                     if (karat) {
+                                        karatValue = karat.karat;
                                         const MetalRateId = await MetalRateMaster.findOne({
                                             where: {
                                                 karat_id: karat.id,
@@ -2817,13 +2825,45 @@ const designController = () => {
                                 }
                             });
                             if (diamondCut) {
-                                designObj.cut_master_id = diamondCut.id;
+                                designDiamondDetailsObj.cut_master_id = diamondCut.id;
                             } else {
                                 validationSting.push("Diamond cut not found");
                             }
                         }
                         if (x["Diamond Carat"].trim() !== "" && x["Diamond Type"].trim() !== "" && x["Diamond Clarity"].trim() !== "") {
-
+                            const DiamondMaster = await DiamondMaster.findOne({
+                                where: {
+                                    carat: x["Diamond Carat"].trim(),
+                                }
+                            });
+                            const DiamondType = await DiamondType.findOne({
+                                where: {
+                                    type_name: x["Diamond Type"].trim(),
+                                }
+                            });
+                            const DiamondClarity = await DiamondClarity.findOne({
+                                where: {
+                                    clarity: x["Diamond Clarity"].trim(),
+                                }
+                            });
+                            if (DiamondMaster && DiamondType && DiamondClarity) {
+                                const DiamondRate = await DiamondRate.findOne({
+                                    where: {
+                                        diamond_master_id: DiamondMaster.id,
+                                        diamond_type_id: DiamondType.id,
+                                        clarity_id: DiamondClarity.id,
+                                    }
+                                });
+                                if (DiamondRate) {
+                                    designDiamondDetailsObj.diamond_rate_id = DiamondRate.id;
+                                    // designDiamondDetailsObj.cut_master_id = diamondCut.id
+                                    designDiamondDetailsObj.pcs = x["Pcs"].trim();
+                                } else {
+                                    validationSting.push("Diamond rate not found");
+                                }
+                            } else {
+                                validationSting.push("Diamond master, type, or clarity not found");
+                            }
                         }
                         if (x["Pcs"].trim() !== "") {
                             designObj.pcs = x["Pcs"].trim();
@@ -2861,6 +2901,11 @@ const designController = () => {
                                 designObj.constructor === Object
                             ) {
                                 designArray.push(designObj);
+                                // Store metal code and karat for SKU generation
+                                skuInfoArray.push({
+                                    metalCode: metalCode,
+                                    karatValue: karatValue
+                                });
                             }
                             // Push both English and Finnish translations
                             if (
@@ -2874,6 +2919,20 @@ const designController = () => {
                                 designTranslationObjFN.constructor === Object
                             ) {
                                 designTranslationArray.push(designTranslationObjFN);
+                            }
+                            // Store diamond details with design index for later insertion
+                            // Only insert if both cut_master_id and diamond_rate_id are present (both are required)
+                            if (
+                                Object.keys(designDiamondDetailsObj).length !== 0 &&
+                                designDiamondDetailsObj.constructor === Object &&
+                                designDiamondDetailsObj.cut_master_id &&
+                                designDiamondDetailsObj.diamond_rate_id
+                            ) {
+                                designDiamondDetailsArray.push({
+                                    ...designDiamondDetailsObj,
+                                    designIndex: designArray.length - 1, // Index in designArray
+                                    is_center: designObj.diamond_position === 1 ? 1 : 0
+                                });
                             }
                         }
                     }
@@ -2893,6 +2952,54 @@ const designController = () => {
                                 success: false,
                                 message: "Internal error: Design and translation arrays length mismatch. Expected 2 translations per design."
                             });
+                        }
+
+                        // Generate SKU numbers for each design
+                        // Track SKU numbers used in this batch to avoid duplicates
+                        const skuCounterMap = new Map();
+
+                        for (let i = 0; i < designArray.length; i++) {
+                            const skuInfo = skuInfoArray[i];
+                            if (skuInfo && skuInfo.metalCode && skuInfo.karatValue) {
+                                // Build SKU prefix: KORK + karat + metal_code (e.g., KORK14KTYG)
+                                const skuPrefix = `KORK${skuInfo.karatValue.replace(/\s+/g, '')}${skuInfo.metalCode}`;
+
+                                // Check if we've already generated a SKU for this prefix in this batch
+                                let nextNumber;
+                                if (skuCounterMap.has(skuPrefix)) {
+                                    // Increment the counter for this prefix
+                                    nextNumber = skuCounterMap.get(skuPrefix) + 1;
+                                    skuCounterMap.set(skuPrefix, nextNumber);
+                                } else {
+                                    // First time seeing this prefix in this batch - find the highest existing SKU
+                                    const existingDesigns = await Designs.findAll({
+                                        where: {
+                                            sku_number: {
+                                                [Op.like]: `${skuPrefix}%`
+                                            }
+                                        },
+                                        order: [['sku_number', 'DESC']],
+                                        limit: 1,
+                                        transaction
+                                    });
+
+                                    nextNumber = 1;
+                                    if (existingDesigns.length > 0 && existingDesigns[0].sku_number) {
+                                        // Extract the number part from existing SKU (e.g., "KORK14KTYG001" -> "001")
+                                        const existingSku = existingDesigns[0].sku_number;
+                                        const numberPart = existingSku.replace(skuPrefix, '');
+                                        const existingNumber = parseInt(numberPart, 10);
+                                        if (!isNaN(existingNumber)) {
+                                            nextNumber = existingNumber + 1;
+                                        }
+                                    }
+                                    skuCounterMap.set(skuPrefix, nextNumber);
+                                }
+
+                                // Format number with leading zeros (001, 002, etc.)
+                                const formattedNumber = String(nextNumber).padStart(3, '0');
+                                designArray[i].sku_number = `${skuPrefix}${formattedNumber}`;
+                            }
                         }
 
                         // Insert designs using bulkCreate
@@ -2915,6 +3022,22 @@ const designController = () => {
                         await DesignTranslation.bulkCreate(translationRecordsWithDesignId, {
                             transaction
                         });
+
+                        // Insert diamond details with design_id foreign key
+                        if (designDiamondDetailsArray.length > 0) {
+                            const diamondDetailsWithDesignId = designDiamondDetailsArray.map((diamondDetail) => {
+                                const { designIndex, ...diamondDetailData } = diamondDetail;
+                                return {
+                                    ...diamondDetailData,
+                                    design_id: createdDesigns[designIndex].id,
+                                    is_center: diamondDetailData.is_center !== undefined ? diamondDetailData.is_center : 0
+                                };
+                            });
+
+                            await DesignsDiamondDetails.bulkCreate(diamondDetailsWithDesignId, {
+                                transaction
+                            });
+                        }
 
                         // Commit transaction
                         await transaction.commit();
