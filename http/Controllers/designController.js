@@ -2316,7 +2316,8 @@ const designController = () => {
                     })),
                     karats: karats.map(karat => ({
                         id: karat.id,
-                        karat: karat.karat
+                        karat: karat.karat,
+                        is_platinum: karat.karat && karat.karat.includes('950PT') ? 1 : 0
                     })),
                     ring_sizes: ringSizes
                 };
