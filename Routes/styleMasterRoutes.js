@@ -10,6 +10,7 @@ Router.get("/readOne/:id", authMiddleware, styleMasterController().readOne);
 Router.put("/update/:id", authMiddleware, transactionMiddleware(styleMasterController().update));
 Router.delete("/delete/:id", authMiddleware, transactionMiddleware(styleMasterController().delete));
 Router.get("/dropdown", authMiddleware, styleMasterController().styleMasterDropdown);
+Router.get("/dropdown-by-subcategory", authMiddleware, styleMasterController().styleMasterDropdownBySubCategory);
 
 module.exports = Router;
 
