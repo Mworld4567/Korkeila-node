@@ -117,10 +117,20 @@ const diamondTypeController = () => {
                     ]
                 });
 
+                // Append diamond_type_name outside array
+                const formattedData = mydata.map(diamondType => {
+                    const diamondTypeObj = diamondType.toJSON();
+                    if (diamondTypeObj.diamond_type_translations && diamondTypeObj.diamond_type_translations.length > 0) {
+                        diamondTypeObj.diamond_type_name = diamondTypeObj.diamond_type_translations[0].diamond_type_name;
+                    }
+                    delete diamondTypeObj.diamond_type_translations;
+                    return diamondTypeObj;
+                });
+
                 return res.status(200).json({
                     success: true,
                     message: "Diamond type fetched successfully",
-                    data: mydata,
+                    data: formattedData,
                 });
             } catch (error) {
                 console.log(error);

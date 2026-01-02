@@ -122,10 +122,20 @@ const metalController = () => {
                     ]
                 });
 
+                // Append metal_name outside array
+                const formattedData = mydata.map(metal => {
+                    const metalObj = metal.toJSON();
+                    if (metalObj.metal_translations && metalObj.metal_translations.length > 0) {
+                        metalObj.metal_name = metalObj.metal_translations[0].metal_name;
+                    }
+                    delete metalObj.metal_translations;
+                    return metalObj;
+                });
+
                 return res.status(200).json({
                     success: true,
                     message: "Metal fetched successfully",
-                    data: mydata,
+                    data: formattedData,
                 });
             } catch (error) {
                 console.log(error);
