@@ -1,5 +1,7 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
+const DiamondType = require("./DiamondType");
+const Language = require("./Language");
 
 const DiamondTypeTranslation = sequelize.define(
     "diamond_type_translations",
@@ -13,5 +15,9 @@ const DiamondTypeTranslation = sequelize.define(
         timestamps: false,
     }
 );
+
+DiamondTypeTranslation.belongsTo(DiamondType, { foreignKey: 'diamond_type_id', as: 'diamond_type' });
+DiamondTypeTranslation.belongsTo(Language, { foreignKey: 'language_id', as: 'language' });
+DiamondType.hasMany(DiamondTypeTranslation, { foreignKey: 'diamond_type_id', as: 'diamond_type_translations' });
 
 module.exports = DiamondTypeTranslation;

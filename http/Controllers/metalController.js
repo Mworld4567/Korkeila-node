@@ -1,6 +1,10 @@
 const logError = require("../../logger/log");
 const Metal = require("../../Models/Metal");
+const dateFunc = require("../../helpers/dateFunc");
+const MetalTranslation = require("../../Models/MetalTranslation");
+const Language = require("../../Models/Language");
 const { Op } = require("sequelize");
+const { languageId } = require("../../config/globalVariable");
 
 const metalController = () => {
     return {
@@ -13,25 +17,70 @@ const metalController = () => {
                     });
                 }
 
+                if (!req.body.metal_code || req.body.metal_code === "") {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Please enter metal code",
+                    });
+                }
+
                 const existingMetal = await Metal.findOne({
                     where: {
-                        metal_name: req.body.metal_name.trim()
+                        metal_code: req.body.metal_code.trim(),
+                        deleted_at: null
                     }
                 });
 
                 if (existingMetal) {
                     return res.status(409).json({
                         success: false,
-                        message: "Metal name already exists",
+                        message: "Metal code already exists",
                     });
                 }
 
                 const data = {
                     metal_name: req.body.metal_name.trim(),
-                    metal_code: req.body.metal_code ? req.body.metal_code : null,
+                    metal_code: req.body.metal_code.trim(),
                 };
 
                 const mydata = await Metal.create(data);
+
+                // Handle metal_name_array - parse if it's a string (form-data scenario)
+                if (req.body.metal_name_array) {
+                    let metal_name_array = req.body.metal_name_array;
+                    
+                    // Parse if it's a JSON string (when sent as form-data)
+                    if (typeof metal_name_array === 'string') {
+                        try {
+                            metal_name_array = JSON.parse(metal_name_array.trim());
+                        } catch (error) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Invalid metal_name_array format. Please ensure it's valid JSON array",
+                            });
+                        }
+                    }
+
+                    // Validate that metal_name_array is an array
+                    if (!Array.isArray(metal_name_array)) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "metal_name_array must be an array",
+                        });
+                    }
+
+                    const translationData = [];
+                    for (const language of metal_name_array) {
+                        translationData.push({
+                            metal_id: mydata.id,
+                            language_id: language.language_id,
+                            metal_name: language.metal_name.trim(),
+                        });
+                    }
+                    
+                    const metal_translations = await MetalTranslation.bulkCreate(translationData);
+                    mydata.metal_translations = metal_translations;
+                }
 
                 return res.status(200).json({
                     success: true,
@@ -51,7 +100,25 @@ const metalController = () => {
         read: async (req, res) => {
             try {
                 const mydata = await Metal.findAll({
-                    order: [['id', 'DESC']]
+                    where: {
+                        deleted_at: null,
+                    },
+                    order: [['id', 'DESC']],
+                    include: [
+                        {
+                            model: MetalTranslation,
+                            as: 'metal_translations',
+                            where: { language_id: languageId.English },
+                            attributes: ['id', 'metal_id', 'language_id', 'metal_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name', 'language_code']
+                                }
+                            ]
+                        }
+                    ]
                 });
 
                 return res.status(200).json({
@@ -70,7 +137,26 @@ const metalController = () => {
         },
         readOne: async (req, res) => {
             try {
-                const mydata = await Metal.findByPk(req.params.id);
+                const mydata = await Metal.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null
+                    },
+                    include: [
+                        {
+                            model: MetalTranslation,
+                            as: 'metal_translations',
+                            attributes: ['id', 'metal_id', 'language_id', 'metal_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name', 'language_code']
+                                }
+                            ]
+                        }
+                    ]
+                });
 
                 if (!mydata) {
                     return res.status(409).json({
@@ -95,7 +181,12 @@ const metalController = () => {
         },
         update: async (req, res) => {
             try {
-                const metalData = await Metal.findByPk(req.params.id);
+                const metalData = await Metal.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null
+                    }
+                });
                 if (!metalData) {
                     return res.status(409).json({
                         success: true,
@@ -110,28 +201,78 @@ const metalController = () => {
                     });
                 }
 
+                if (!req.body.metal_code || req.body.metal_code === "") {
+                    return res.status(409).json({
+                        success: true,
+                        message: "Please enter metal code",
+                    });
+                }
+
                 const existingMetal = await Metal.findOne({
                     where: {
-                        metal_name: req.body.metal_name.trim(),
-                        id: { [Op.ne]: parseInt(req.params.id) }
+                        metal_code: req.body.metal_code.trim(),
+                        id: { [Op.ne]: parseInt(req.params.id) },
+                        deleted_at: null
                     }
                 });
 
                 if (existingMetal) {
                     return res.status(409).json({
                         success: false,
-                        message: "Metal name already exists",
+                        message: "Metal code already exists",
                     });
                 }
 
                 const data = {
                     metal_name: req.body.metal_name.trim(),
-                    metal_code: req.body.metal_code,
+                    metal_code: req.body.metal_code.trim(),
                 };
 
                 await Metal.update(data, {
                     where: { id: req.params.id }
                 });
+
+                // Handle metal_name_array updates - parse if it's a string (form-data scenario)
+                if (req.body.metal_name_array) {
+                    let metal_name_array = req.body.metal_name_array;
+                    
+                    // Parse if it's a JSON string (when sent as form-data)
+                    if (typeof metal_name_array === 'string') {
+                        try {
+                            metal_name_array = JSON.parse(metal_name_array.trim());
+                        } catch (error) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Invalid metal_name_array format. Please ensure it's valid JSON array",
+                            });
+                        }
+                    }
+
+                    // Validate that metal_name_array is an array
+                    if (!Array.isArray(metal_name_array)) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "metal_name_array must be an array",
+                        });
+                    }
+
+                    // Delete existing translations for this metal
+                    await MetalTranslation.destroy({
+                        where: { metal_id: req.params.id }
+                    });
+
+                    // Create new translations
+                    const translationData = [];
+                    for (const language of metal_name_array) {
+                        translationData.push({
+                            metal_id: parseInt(req.params.id),
+                            language_id: language.language_id,
+                            metal_name: language.metal_name.trim(),
+                        });
+                    }
+                    
+                    await MetalTranslation.bulkCreate(translationData);
+                }
 
                 const updatedData = await Metal.findByPk(req.params.id);
 
@@ -151,7 +292,13 @@ const metalController = () => {
         },
         delete: async (req, res) => {
             try {
-                const metalData = await Metal.findByPk(req.params.id);
+                const metalData = await Metal.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null
+                    }
+                });
+
                 if (!metalData) {
                     return res.status(409).json({
                         success: true,
@@ -159,9 +306,17 @@ const metalController = () => {
                     });
                 }
 
-                await Metal.destroy({
-                    where: { id: req.params.id }
+                const dateTime = dateFunc();
+
+                // Delete all translations for this metal
+                await MetalTranslation.destroy({
+                    where: { metal_id: req.params.id }
                 });
+
+                await Metal.update(
+                    { deleted_at: dateTime },
+                    { where: { id: req.params.id } }
+                );
 
                 return res.status(200).json({
                     success: true,
