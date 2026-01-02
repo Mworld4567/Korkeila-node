@@ -456,16 +456,69 @@ const designController = () => {
 
                 const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
+                // Parse optional cut_ids from query (for diamond designs)
+                let cutIds = null;
+                if (req.query.cut_ids) {
+                    try {
+                        cutIds = JSON.parse(req.query.cut_ids);
+                        if (!Array.isArray(cutIds)) cutIds = null;
+                    } catch (e) {
+                        cutIds = null;
+                    }
+                }
+
                 // Find designs with same product_id and related metal_rate_ids
-                const relatedDesigns = await Designs.findAll({
+                let relatedDesigns = await Designs.findAll({
                     where: {
                         product_id: productId,
                         metal_rate_id: { [Op.in]: relatedMetalRateIds }
                     },
                     attributes: ['id'],
-                    limit: 1, // Get first related design
                     order: [['id', 'DESC']]
                 });
+
+                // If cut_ids are provided, filter designs by matching cut_master_id(s)
+                // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                if (cutIds && cutIds.length > 0 && relatedDesigns.length > 0) {
+                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                    // Get diamond details for all related designs
+                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                        where: {
+                            design_id: { [Op.in]: relatedDesignIds }
+                        },
+                        attributes: ['design_id', 'cut_master_id'],
+                    });
+
+                    // Group by design_id and get unique cut_master_ids
+                    const designCutsMap = new Map();
+                    allDiamondDetails.forEach(detail => {
+                        if (!designCutsMap.has(detail.design_id)) {
+                            designCutsMap.set(detail.design_id, new Set());
+                        }
+                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                    });
+
+                    // Sort current cut_ids for comparison
+                    const currentCutIds = [...new Set(cutIds.map(id => parseInt(id)))].sort((a, b) => a - b);
+
+                    // Filter designs that have matching cut_master_id(s)
+                    const matchingDesignIds = [];
+                    designCutsMap.forEach((cutSet, designId) => {
+                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                        // Check if cuts match (same set of cut_ids)
+                        if (currentCutIds.length === designCutIds.length &&
+                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                            matchingDesignIds.push(designId);
+                        }
+                    });
+
+                    if (matchingDesignIds.length > 0) {
+                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                    } else {
+                        relatedDesigns = [];
+                    }
+                }
 
                 if (relatedDesigns.length === 0) {
                     return res.status(200).json({
@@ -848,7 +901,7 @@ const designController = () => {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
                             // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds }
@@ -856,6 +909,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
@@ -937,7 +1035,7 @@ const designController = () => {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
                             // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds }
@@ -945,6 +1043,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
@@ -1490,7 +1633,7 @@ const designController = () => {
                         is_product_listing: img.is_product_listing,
                     })));
 
-                    // Map images to designs with same metal but different karat
+                    // Map images to designs with same metal (all karats) and same cut (if diamonds)
                     // Get the metal_rate_id from the updated design
                     const currentMetalRateId = parseInt(req.body.metal_rate_id);
 
@@ -1499,14 +1642,12 @@ const designController = () => {
 
                     if (currentMetalRate) {
                         const currentMetalId = currentMetalRate.metal_id;
-                        const currentKaratId = currentMetalRate.karat_id;
                         const currentProductId = parseInt(req.body.product_id);
 
-                        // Find all other designs with same product_id, same metal_id, but different karat_id
+                        // Find ALL metal_rate_ids with same metal_id (including same and different karat)
                         const relatedMetalRates = await MetalRateMaster.findAll({
                             where: {
-                                metal_id: currentMetalId,
-                                karat_id: { [Op.ne]: currentKaratId }
+                                metal_id: currentMetalId
                             },
                             attributes: ['id'],
                             transaction
@@ -1515,8 +1656,8 @@ const designController = () => {
                         if (relatedMetalRates.length > 0) {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
-                            // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            // Find designs with same product_id and related metal_rate_ids (exclude current design)
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds },
@@ -1525,6 +1666,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
