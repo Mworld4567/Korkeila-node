@@ -14,6 +14,7 @@ Router.delete("/delete/:id", authMiddleware, transactionMiddleware(designControl
 Router.delete("/delete-image/:id", authMiddleware, designController().deleteDesignImage);
 Router.get("/read", authMiddleware, designController().read);
 Router.get("/readOne/:id", authMiddleware, designController().readOne);
+Router.get("/related-variant-images", authMiddleware, designController().getRelatedVariantImages);
 //ecom endpoints
 Router.get("/variant-details-ecom", designController().variantDetailsForEcom);
 Router.get("/filter-dropdowns-ecom", designController().filterDropdownsEcom);

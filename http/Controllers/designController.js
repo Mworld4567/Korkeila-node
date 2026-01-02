@@ -53,10 +53,6 @@ const designController = () => {
                         success: true,
                         message: "Designs fetched successfully",
                         data: [],
-                        current_page: page,
-                        per_page: limit,
-                        total: count,
-                        total_pages: Math.ceil(count / limit)
                     });
                 }
 
@@ -226,6 +222,12 @@ const designController = () => {
                     // Get English design translation
                     const englishTranslation = designTranslationsMap.get(design.id);
 
+                    // Count images (order 1-4) and video (order 5)
+                    const imageCount = images.filter(img => img.order >= 1 && img.order <= 4).length;
+                    const videoCount = images.filter(img => img.order === 5).length;
+                    const imageText = imageCount === 1 ? "image" : "images";
+                    const image_count = `${imageCount} ${imageText}, ${videoCount} video`;
+
                     return {
                         id: design.id,
                         product_id: design.product_id,
@@ -244,6 +246,7 @@ const designController = () => {
                             order: img.order,
                             is_product_listing: img.is_product_listing,
                         })),
+                        image_count: image_count,
                         total_price: "€ " + Math.round(totalPrice)
                     };
                 });
@@ -252,10 +255,6 @@ const designController = () => {
                     success: true,
                     message: "Designs fetched successfully",
                     data: responseData,
-                    current_page: page,
-                    per_page: limit,
-                    total: count,
-                    total_pages: Math.ceil(count / limit)
                 });
 
             } catch (error) {
@@ -391,6 +390,116 @@ const designController = () => {
                     success: true,
                     message: "Design fetched successfully",
                     data: responseData,
+                });
+
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
+        getRelatedVariantImages: async (req, res) => {
+            try {
+                // Validate required query parameters
+                if (!req.query.product_id || req.query.product_id === "") {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Please provide product ID",
+                    });
+                }
+
+                if (!req.query.metal_rate_id || req.query.metal_rate_id === "") {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Please provide metal rate ID",
+                    });
+                }
+
+                const productId = parseInt(req.query.product_id);
+                const metalRateId = parseInt(req.query.metal_rate_id);
+
+                // Fetch metal_rate_masters to get metal_id and karat_id
+                const currentMetalRate = await MetalRateMaster.findByPk(metalRateId);
+
+                if (!currentMetalRate) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Metal rate not found",
+                    });
+                }
+
+                const currentMetalId = currentMetalRate.metal_id;
+                const currentKaratId = currentMetalRate.karat_id;
+
+                // Find all other metal_rate_ids with same metal_id but different karat_id
+                const relatedMetalRates = await MetalRateMaster.findAll({
+                    where: {
+                        metal_id: currentMetalId,
+                        karat_id: { [Op.ne]: currentKaratId }
+                    },
+                    attributes: ['id'],
+                });
+
+                if (relatedMetalRates.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "No related variants found",
+                        data: {
+                            images: [],
+                            hasExistingImages: false
+                        },
+                    });
+                }
+
+                const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
+
+                // Find designs with same product_id and related metal_rate_ids
+                const relatedDesigns = await Designs.findAll({
+                    where: {
+                        product_id: productId,
+                        metal_rate_id: { [Op.in]: relatedMetalRateIds }
+                    },
+                    attributes: ['id'],
+                    limit: 1, // Get first related design
+                    order: [['id', 'DESC']]
+                });
+
+                if (relatedDesigns.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "No related variants found",
+                        data: {
+                            images: [],
+                            hasExistingImages: false
+                        },
+                    });
+                }
+
+                // Get images from the first related design
+                const relatedDesignId = relatedDesigns[0].id;
+                const relatedImages = await DesignsImages.findAll({
+                    where: { design_id: relatedDesignId },
+                    order: [['order', 'ASC']]
+                });
+
+                const formattedImages = relatedImages.map(img => ({
+                    id: img.id,
+                    image: img.image_name,
+                    image_url: constructImageUrl(img.image_name, 'design'),
+                    order: img.order,
+                    is_product_listing: img.is_product_listing,
+                }));
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Related variant images fetched successfully",
+                    data: {
+                        images: formattedImages,
+                        hasExistingImages: formattedImages.length > 0
+                    },
                 });
 
             } catch (error) {
@@ -667,11 +776,17 @@ const designController = () => {
                 // Create image records
                 if (designImagesArray.length > 0) {
                     // Map uploaded files to design_images array by matching original filename
+                    // If item.image is an existing image name (from related variant), use it directly without uploading
                     const imageRecords = designImagesArray.map((item) => {
                         let imageName = item.image;
                         
-                        // If files are uploaded, find the file that matches the original filename
-                        if (req.files && req.files.length > 0) {
+                        // Check if this is an existing image name (already in S3, from related variant)
+                        // If item.image contains a path or is already a stored image name, use it directly
+                        const isExistingImage = item.is_existing === true || item.image_name ||
+                            (item.image && (item.image.includes('/') || item.image.startsWith('design/')));
+
+                        if (!isExistingImage && req.files && req.files.length > 0) {
+                            // If files are uploaded, find the file that matches the original filename
                             // Try to find file by matching originalname with item.image
                             const matchingFile = req.files.find(file => {
                                 const originalName = file.originalname || '';
@@ -679,8 +794,12 @@ const designController = () => {
                             });
                             
                             if (matchingFile) {
+                                // New file uploaded, use the S3 key
                                 imageName = extractFilename(matchingFile.key) || matchingFile.originalname || item.image;
                             }
+                        } else if (isExistingImage) {
+                            // Use existing image name directly (from related variant)
+                            imageName = item.image_name || item.image;
                         }
                         
                         return {
@@ -3237,6 +3356,25 @@ const designController = () => {
                                 success: false,
                                 message: "Internal error: Design and translation arrays length mismatch. Expected 2 translations per design."
                             });
+                        }
+
+                        // Count diamond details per design to set is_filter_available
+                        const diamondDetailsCountMap = new Map();
+                        designDiamondDetailsArray.forEach((diamondDetail) => {
+                            const designIndex = diamondDetail.designIndex;
+                            diamondDetailsCountMap.set(designIndex, (diamondDetailsCountMap.get(designIndex) || 0) + 1);
+                        });
+
+                        // Set is_filter_available for each design
+                        for (let i = 0; i < designArray.length; i++) {
+                            const diamondCount = diamondDetailsCountMap.get(i) || 0;
+                            if (diamondCount === 0) {
+                                designArray[i].is_filter_available = filterAvailable.NoDiamond; // 0
+                            } else if (diamondCount === 1) {
+                                designArray[i].is_filter_available = filterAvailable.SingleDiamond; // 1
+                            } else {
+                                designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                            }
                         }
 
                         // Generate SKU numbers for each design
