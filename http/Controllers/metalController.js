@@ -10,12 +10,12 @@ const metalController = () => {
     return {
         create: async (req, res) => {
             try {
-                if (!req.body.metal_name || req.body.metal_name === "") {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please enter metal name",
-                    });
-                }
+                // if (!req.body.metal_name || req.body.metal_name === "") {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter metal name",
+                //     });
+                // }
 
                 if (!req.body.metal_code || req.body.metal_code === "") {
                     return res.status(409).json({
@@ -39,7 +39,7 @@ const metalController = () => {
                 }
 
                 const data = {
-                    metal_name: req.body.metal_name.trim(),
+                    // metal_name: req.body.metal_name.trim(),
                     metal_code: req.body.metal_code.trim(),
                 };
 
@@ -103,6 +103,7 @@ const metalController = () => {
                     where: {
                         deleted_at: null,
                     },
+                    attributes: ['id', 'metal_code'],
                     order: [['id', 'DESC']],
                     include: [
                         {
@@ -142,6 +143,7 @@ const metalController = () => {
                         id: req.params.id,
                         deleted_at: null
                     },
+                    attributes: ['id', 'metal_code'],
                     include: [
                         {
                             model: MetalTranslation,
@@ -194,12 +196,12 @@ const metalController = () => {
                     });
                 }
 
-                if (!req.body.metal_name || req.body.metal_name === "") {
-                    return res.status(409).json({
-                        success: true,
-                        message: "Please enter metal name",
-                    });
-                }
+                // if (!req.body.metal_name || req.body.metal_name === "") {
+                //     return res.status(409).json({
+                //         success: true,
+                //         message: "Please enter metal name",
+                //     });
+                // }
 
                 if (!req.body.metal_code || req.body.metal_code === "") {
                     return res.status(409).json({
@@ -224,7 +226,7 @@ const metalController = () => {
                 }
 
                 const data = {
-                    metal_name: req.body.metal_name.trim(),
+                    // metal_name: req.body.metal_name.trim(),
                     metal_code: req.body.metal_code.trim(),
                 };
 

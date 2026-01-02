@@ -9,12 +9,12 @@ const diamondTypeController = () => {
     return {
         create: async (req, res) => {
             try {
-                if (!req.body.type_name || req.body.type_name === "") {
-                    return res.status(409).json({
-                        success: false,
-                        message: "Please enter type name",
-                    });
-                }
+                // if (!req.body.type_name || req.body.type_name === "") {
+                //     return res.status(409).json({
+                //         success: false,
+                //         message: "Please enter type name",
+                //     });
+                // }
 
                 if (!req.body.type_code || req.body.type_code === "") {
                     return res.status(409).json({
@@ -37,7 +37,7 @@ const diamondTypeController = () => {
                 }
 
                 const data = {
-                    type_name: req.body.type_name.trim(),
+                    // type_name: req.body.type_name.trim(),
                     type_code: req.body.type_code.trim(),
                 };
 
@@ -98,6 +98,7 @@ const diamondTypeController = () => {
         read: async (req, res) => {
             try {
                 const mydata = await DiamondType.findAll({
+                    attributes: ['id', 'type_code'],
                     order: [['id', 'DESC']],
                     include: [
                         {
@@ -136,6 +137,7 @@ const diamondTypeController = () => {
                     where: {
                         id: req.params.id
                     },
+                    attributes: ['id', 'type_code'],
                     include: [
                         {
                             model: DiamondTypeTranslation,
@@ -183,12 +185,12 @@ const diamondTypeController = () => {
                     });
                 }
 
-                if (!req.body.type_name || req.body.type_name === "") {
-                    return res.status(409).json({
-                        success: true,
-                        message: "Please enter type name",
-                    });
-                }
+                // if (!req.body.type_name || req.body.type_name === "") {
+                //     return res.status(409).json({
+                //         success: true,
+                //         message: "Please enter type name",
+                //     });
+                // }
 
                 if (!req.body.type_code || req.body.type_code === "") {
                     return res.status(409).json({
@@ -212,7 +214,7 @@ const diamondTypeController = () => {
                 }
 
                 const data = {
-                    type_name: req.body.type_name.trim(),
+                    // type_name: req.body.type_name.trim(),
                     type_code: req.body.type_code.trim(),
                 };
 
