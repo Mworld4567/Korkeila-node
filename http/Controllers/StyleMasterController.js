@@ -273,6 +273,28 @@ const styleMasterController = () => {
                 });
             }
         },
+        styleMasterDropdownBySubCategory: async (req, res) => {
+            try {
+                const styleMasterData = await StyleMaster.findAll({
+                    attributes: ['id', 'style_name'],
+                    where: {
+                        sub_category_id: req.query.sub_category_id
+                    }
+                });
+                return res.status(200).json({
+                    success: true,
+                    message: "Style master dropdown fetched successfully",
+                    data: styleMasterData,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 
