@@ -1,6 +1,7 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../config/dbconfig");
 const Category = require("./Category");
+const Language = require("./Language");
 
 const CategoryTranslation = sequelize.define(
     "category_translations",
@@ -16,6 +17,7 @@ const CategoryTranslation = sequelize.define(
 );
 
 CategoryTranslation.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+CategoryTranslation.belongsTo(Language, { foreignKey: 'language_id', as: 'language' });
 Category.hasMany(CategoryTranslation, { foreignKey: 'category_id', as: 'category_translations' });
 
 module.exports = CategoryTranslation;

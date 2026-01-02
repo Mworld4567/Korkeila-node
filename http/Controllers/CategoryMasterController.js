@@ -2,10 +2,11 @@ const logError = require("../../logger/log");
 const CategoryMaster = require("../../Models/Category");
 const dateFunc = require("../../helpers/dateFunc");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
+const Language = require("../../Models/Language");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
-
+const { languageId } = require("../../config/globalVariable");
 const categoryMasterController = () => {
     return {
         create: async (req, res) => {
@@ -56,6 +57,42 @@ const categoryMasterController = () => {
 
                 const mydata = await CategoryMaster.create(data);
 
+                // Handle category_name_array - parse if it's a string (form-data scenario)
+                if (req.body.category_name_array) {
+                    let category_name_array = req.body.category_name_array;
+                    
+                    // Parse if it's a JSON string (when sent as form-data)
+                    if (typeof category_name_array === 'string') {
+                        try {
+                            category_name_array = JSON.parse(category_name_array.trim());
+                        } catch (error) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Invalid category_name_array format. Please ensure it's valid JSON array",
+                            });
+                        }
+                    }
+
+                    // Validate that category_name_array is an array
+                    if (!Array.isArray(category_name_array)) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "category_name_array must be an array",
+                        });
+                    }
+
+                    const translationData = [];
+                    for (const language of category_name_array) {
+                        translationData.push({
+                            category_id: mydata.id,
+                            language_id: language.language_id,
+                            category_name: language.category_name.trim(),
+                        });
+                    }
+                    
+                    const category_translations = await CategoryTranslation.bulkCreate(translationData);
+                    mydata.category_translations = category_translations;
+                }
                 // Construct full URL for response
                 const responseData = mydata.toJSON();
                 responseData.image = constructImageUrl(responseData.image, 'categoryMaster');
@@ -81,10 +118,25 @@ const categoryMasterController = () => {
                     where: {
                         deleted_at: null,
                     },
-                    order: [['id', 'DESC']]
+                    order: [['id', 'DESC']],
+                    include: [
+                        {
+                            model: CategoryTranslation,
+                            as: 'category_translations',
+                            where: { language_id: languageId.English },
+                            attributes: ['id', 'category_id', 'language_id', 'category_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name', 'language_code']
+                                }
+                            ]
+                        }
+                    ]
                 });
 
-                // Construct full URLs for images dynamically
+                // Construct full URLs for images dynamically and include translations
                 const dataWithUrls = mydata.map(item => {
                     const itemData = item.toJSON();
                     itemData.image = constructImageUrl(itemData.image, 'categoryMaster');
@@ -111,7 +163,21 @@ const categoryMasterController = () => {
                     where: {
                         id: req.params.id,
                         deleted_at: null
-                    }
+                    },
+                    include: [
+                        {
+                            model: CategoryTranslation,
+                            as: 'category_translations',
+                            attributes: ['id', 'category_id', 'language_id', 'category_name'],
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_name', 'language_code']
+                                }
+                            ]
+                        }
+                    ]
                 });
 
                 if (!mydata) {
@@ -223,6 +289,48 @@ const categoryMasterController = () => {
                     where: { id: req.params.id }
                 });
 
+                // Handle category_name_array updates - parse if it's a string (form-data scenario)
+                if (req.body.category_name_array) {
+                    let category_name_array = req.body.category_name_array;
+                    
+                    // Parse if it's a JSON string (when sent as form-data)
+                    if (typeof category_name_array === 'string') {
+                        try {
+                            category_name_array = JSON.parse(category_name_array.trim());
+                        } catch (error) {
+                            return res.status(409).json({
+                                success: false,
+                                message: "Invalid category_name_array format. Please ensure it's valid JSON array",
+                            });
+                        }
+                    }
+
+                    // Validate that category_name_array is an array
+                    if (!Array.isArray(category_name_array)) {
+                        return res.status(409).json({
+                            success: false,
+                            message: "category_name_array must be an array",
+                        });
+                    }
+
+                    // Delete existing translations for this category
+                    await CategoryTranslation.destroy({
+                        where: { category_id: req.params.id }
+                    });
+
+                    // Create new translations
+                    const translationData = [];
+                    for (const language of category_name_array) {
+                        translationData.push({
+                            category_id: parseInt(req.params.id),
+                            language_id: language.language_id,
+                            category_name: language.category_name.trim(),
+                        });
+                    }
+                    
+                    await CategoryTranslation.bulkCreate(translationData);
+                }
+
                 const updatedData = await CategoryMaster.findByPk(req.params.id);
 
                 // Construct full URL for response
@@ -260,6 +368,11 @@ const categoryMasterController = () => {
                 }
 
                 const dateTime = dateFunc();
+
+                // Delete all translations for this category
+                await CategoryTranslation.destroy({
+                    where: { category_id: req.params.id }
+                });
 
                 await CategoryMaster.update(
                     { deleted_at: dateTime },
@@ -309,7 +422,22 @@ const categoryMasterController = () => {
                         {
                             model: CategoryMaster,
                             as: 'category',
-                            attributes: ['id', 'category_name', 'image']
+                            attributes: ['id', 'category_name', 'image'],
+                            include: [
+                                {
+                                    model: CategoryTranslation,
+                                    as: 'category_translations',
+                                    where: { language_id: req.query.language_id },
+                                    attributes: ['id', 'category_id', 'language_id', 'category_name'],
+                                    include: [
+                                        {
+                                            model: Language,
+                                            as: 'language',
+                                            attributes: ['id', 'language_name', 'language_code']
+                                        }
+                                    ]
+                                }
+                            ]
                         }
                     ]
                 });
@@ -317,7 +445,7 @@ const categoryMasterController = () => {
                 const data = categoryData.map(item => {
                     return {
                         id: item.category.id,
-                        category_name: item.category_name,
+                        category_name: item.category.category_translations[0].category_name,
                         image: constructImageUrl(item.category.image, 'categoryMaster')
                     };
                 });
