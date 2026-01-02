@@ -255,6 +255,10 @@ const designController = () => {
                     success: true,
                     message: "Designs fetched successfully",
                     data: responseData,
+                    total_count: count,
+                    total_pages: Math.ceil(count / limit),
+                    current_page: page,
+                    limit: limit,
                 });
 
             } catch (error) {
