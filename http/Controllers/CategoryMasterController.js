@@ -130,7 +130,7 @@ const categoryMasterController = () => {
                                     model: Language,
                                     as: 'language',
                                     attributes: ['id', 'language_name', 'language_code']
-                                }
+                                }   
                             ]
                         }
                     ]
@@ -140,6 +140,10 @@ const categoryMasterController = () => {
                 const dataWithUrls = mydata.map(item => {
                     const itemData = item.toJSON();
                     itemData.image = constructImageUrl(itemData.image, 'categoryMaster');
+                    if (itemData.category_translations && itemData.category_translations.length > 0) {
+                        itemData.category_name = itemData.category_translations[0].category_name;
+                    }
+                    delete itemData.category_translations;
                     return itemData;
                 });
 
