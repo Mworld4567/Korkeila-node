@@ -460,16 +460,69 @@ const designController = () => {
 
                 const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
+                // Parse optional cut_ids from query (for diamond designs)
+                let cutIds = null;
+                if (req.query.cut_ids) {
+                    try {
+                        cutIds = JSON.parse(req.query.cut_ids);
+                        if (!Array.isArray(cutIds)) cutIds = null;
+                    } catch (e) {
+                        cutIds = null;
+                    }
+                }
+
                 // Find designs with same product_id and related metal_rate_ids
-                const relatedDesigns = await Designs.findAll({
+                let relatedDesigns = await Designs.findAll({
                     where: {
                         product_id: productId,
                         metal_rate_id: { [Op.in]: relatedMetalRateIds }
                     },
                     attributes: ['id'],
-                    limit: 1, // Get first related design
                     order: [['id', 'DESC']]
                 });
+
+                // If cut_ids are provided, filter designs by matching cut_master_id(s)
+                // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                if (cutIds && cutIds.length > 0 && relatedDesigns.length > 0) {
+                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                    // Get diamond details for all related designs
+                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                        where: {
+                            design_id: { [Op.in]: relatedDesignIds }
+                        },
+                        attributes: ['design_id', 'cut_master_id'],
+                    });
+
+                    // Group by design_id and get unique cut_master_ids
+                    const designCutsMap = new Map();
+                    allDiamondDetails.forEach(detail => {
+                        if (!designCutsMap.has(detail.design_id)) {
+                            designCutsMap.set(detail.design_id, new Set());
+                        }
+                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                    });
+
+                    // Sort current cut_ids for comparison
+                    const currentCutIds = [...new Set(cutIds.map(id => parseInt(id)))].sort((a, b) => a - b);
+
+                    // Filter designs that have matching cut_master_id(s)
+                    const matchingDesignIds = [];
+                    designCutsMap.forEach((cutSet, designId) => {
+                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                        // Check if cuts match (same set of cut_ids)
+                        if (currentCutIds.length === designCutIds.length &&
+                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                            matchingDesignIds.push(designId);
+                        }
+                    });
+
+                    if (matchingDesignIds.length > 0) {
+                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                    } else {
+                        relatedDesigns = [];
+                    }
+                }
 
                 if (relatedDesigns.length === 0) {
                     return res.status(200).json({
@@ -852,7 +905,7 @@ const designController = () => {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
                             // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds }
@@ -860,6 +913,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
@@ -941,7 +1039,7 @@ const designController = () => {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
                             // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds }
@@ -949,6 +1047,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
@@ -1494,7 +1637,7 @@ const designController = () => {
                         is_product_listing: img.is_product_listing,
                     })));
 
-                    // Map images to designs with same metal but different karat
+                    // Map images to designs with same metal (all karats) and same cut (if diamonds)
                     // Get the metal_rate_id from the updated design
                     const currentMetalRateId = parseInt(req.body.metal_rate_id);
 
@@ -1503,14 +1646,12 @@ const designController = () => {
 
                     if (currentMetalRate) {
                         const currentMetalId = currentMetalRate.metal_id;
-                        const currentKaratId = currentMetalRate.karat_id;
                         const currentProductId = parseInt(req.body.product_id);
 
-                        // Find all other designs with same product_id, same metal_id, but different karat_id
+                        // Find ALL metal_rate_ids with same metal_id (including same and different karat)
                         const relatedMetalRates = await MetalRateMaster.findAll({
                             where: {
-                                metal_id: currentMetalId,
-                                karat_id: { [Op.ne]: currentKaratId }
+                                metal_id: currentMetalId
                             },
                             attributes: ['id'],
                             transaction
@@ -1519,8 +1660,8 @@ const designController = () => {
                         if (relatedMetalRates.length > 0) {
                             const relatedMetalRateIds = relatedMetalRates.map(mr => mr.id);
 
-                            // Find designs with same product_id and related metal_rate_ids
-                            const relatedDesigns = await Designs.findAll({
+                            // Find designs with same product_id and related metal_rate_ids (exclude current design)
+                            let relatedDesigns = await Designs.findAll({
                                 where: {
                                     product_id: currentProductId,
                                     metal_rate_id: { [Op.in]: relatedMetalRateIds },
@@ -1529,6 +1670,51 @@ const designController = () => {
                                 attributes: ['id'],
                                 transaction
                             });
+
+                            // If diamond details exist, also filter by cut_master_id(s)
+                            // Cut must match, but diamond_rate_id (clarity/type/carat) doesn't matter
+                            if (req.body.diamond_design_detail && Array.isArray(req.body.diamond_design_detail) && req.body.diamond_design_detail.length > 0) {
+                                const currentCutIds = [...new Set(req.body.diamond_design_detail.map(d => parseInt(d.cut_id)).filter(Boolean))].sort((a, b) => a - b);
+
+                                if (currentCutIds.length > 0 && relatedDesigns.length > 0) {
+                                    const relatedDesignIds = relatedDesigns.map(d => d.id);
+
+                                    // Get diamond details for all related designs
+                                    const allDiamondDetails = await DesignsDiamondDetails.findAll({
+                                        where: {
+                                            design_id: { [Op.in]: relatedDesignIds }
+                                        },
+                                        attributes: ['design_id', 'cut_master_id'],
+                                        transaction
+                                    });
+
+                                    // Group by design_id and get unique cut_master_ids
+                                    const designCutsMap = new Map();
+                                    allDiamondDetails.forEach(detail => {
+                                        if (!designCutsMap.has(detail.design_id)) {
+                                            designCutsMap.set(detail.design_id, new Set());
+                                        }
+                                        designCutsMap.get(detail.design_id).add(detail.cut_master_id);
+                                    });
+
+                                    // Filter designs that have matching cut_master_id(s)
+                                    const matchingDesignIds = [];
+                                    designCutsMap.forEach((cutSet, designId) => {
+                                        const designCutIds = Array.from(cutSet).sort((a, b) => a - b);
+                                        // Check if cuts match (same set of cut_ids)
+                                        if (currentCutIds.length === designCutIds.length &&
+                                            currentCutIds.every((id, idx) => id === designCutIds[idx])) {
+                                            matchingDesignIds.push(designId);
+                                        }
+                                    });
+
+                                    if (matchingDesignIds.length > 0) {
+                                        relatedDesigns = relatedDesigns.filter(d => matchingDesignIds.includes(d.id));
+                                    } else {
+                                        relatedDesigns = [];
+                                    }
+                                }
+                            }
 
                             // Copy images to related designs
                             if (relatedDesigns.length > 0) {
@@ -2777,6 +2963,7 @@ const designController = () => {
                 const clarityId = req.query.clarity_id || req.body.clarity_id;
                 const carat = req.query.carat || req.body.carat;
                 const cutId = req.query.cut_id || req.body.cut_id;
+                const lastChangedFilter = req.query.last_changed_filter || req.body.last_changed_filter; // Track which filter was changed last
 
                 if (!productId) {
                     return res.status(400).json({
@@ -2785,161 +2972,320 @@ const designController = () => {
                     });
                 }
 
-                // Build where clause for design filtering
-                const designWhere = { product_id: parseInt(productId) };
-
-                // If design_id is provided, use that specific design
-                if (designId) {
-                    designWhere.id = parseInt(designId);
-                }
-
-                const MetalrateFilter = await MetalRateMaster.findOne({
-                    where: {
-                        metal_id: parseInt(metalId),
-                        karat_id: parseInt(karatId)
-                    }
-                });
-                if (!MetalrateFilter) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Metal rate not found"
-                    });
-                }
-
-                // Check if diamond filters are provided (all required for diamond filtering)
-                const hasDiamondFilters = diamondTypeId && clarityId && carat;
-                let diamondrateFilter = null;
-
-                if (hasDiamondFilters) {
-                    const caratValue = parseFloat(carat);
-                    const tolerance = 0.000001; // Small tolerance for floating-point comparison
-                    const diamondmasterFilter = await DiamondMaster.findOne({
-                        where: {
-                            carat: {
-                                [Op.between]: [caratValue - tolerance, caratValue + tolerance]
-                            },
-                            deleted_at: null
-                        }
-                    });
-                    if (!diamondmasterFilter) {
-                        return res.status(404).json({
-                            success: false,
-                            message: "Diamond master not found"
-                        });
-                    }
-                    diamondrateFilter = await DiamondRate.findOne({
-                        where: {
-                            diamond_type_id: parseInt(diamondTypeId),
-                            clarity_id: parseInt(clarityId),
-                            diamond_master_id: diamondmasterFilter.id
-                        }
-                    });
-
-                    if (!diamondrateFilter) {
-                        return res.status(404).json({
-                            success: false,
-                            message: "Diamond rate not found"
-                        });
-                    }
-                }
-
-                // Build includes array
-                const includes = [
-                    {
-                        model: MetalRateMaster,
-                        as: 'metal_rate',
-                        attributes: ['id', 'metal_id', 'karat_id', 'rate'],
-                        include: [
-                            { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
-                            { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
-                        ]
-                    },
-                    {
-                        model: DesignsImages,
-                        as: 'images',
-                        attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-                        separate: true,
-                        order: [['id', 'ASC']]
-                    },
-                    {
-                        model: Product,
-                        as: 'product',
-                        include: [
-                            { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
-                            { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
-                            { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
-                        ]
-                    },
-                    {
-                        model: DesignTranslation,
-                        as: 'design_translations',
-                        attributes: ['id', 'language_id', 'design_variant_name', 'description'],
-                        required: false,
-                        include: [
-                            { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
-                        ]
-                    }
-                ];
-
-                // Add diamond details include conditionally
-                if (hasDiamondFilters && diamondrateFilter) {
-                    includes.push({
-                        model: DesignsDiamondDetails,
-                        as: 'diamond_details',
-                        where: {
-                            diamond_rate_id: diamondrateFilter.id
+                // Helper function to build includes array
+                const buildIncludes = (useDiamondFilters, diamondRateFilter, useCutId) => {
+                    const includes = [
+                        {
+                            model: MetalRateMaster,
+                            as: 'metal_rate',
+                            attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                            include: [
+                                { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                                { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                            ]
                         },
-                        required: false,
-                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
-                        include: [
-                            { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
-                            {
-                                model: DiamondRate,
-                                as: 'diamond_rate',
-                                attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
-                                include: [
-                                    { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
-                                ]
+                        {
+                            model: DesignsImages,
+                            as: 'images',
+                            attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                            separate: true,
+                            order: [['id', 'ASC']]
+                        },
+                        {
+                            model: Product,
+                            as: 'product',
+                            include: [
+                                { model: Category, as: 'category', attributes: ['id', 'category_name', 'category_code', 'image'] },
+                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                            ]
+                        },
+                        {
+                            model: DesignTranslation,
+                            as: 'design_translations',
+                            attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                            required: false,
+                            include: [
+                                { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                            ]
+                        }
+                    ];
+
+                    // Add diamond details include conditionally
+                    if (useDiamondFilters && diamondRateFilter && useCutId) {
+                        includes.push({
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            where: {
+                                diamond_rate_id: diamondRateFilter.id,
+                                cut_master_id: useCutId
+                            },
+                            required: true,
+                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                            include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                    include: [
+                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                    ]
+                                }
+                            ]
+                        });
+                    } else {
+                        // Include all diamond details if no filter is provided (for plain designs)
+                        includes.push({
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            required: false,
+                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                            include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                    include: [
+                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                    ]
+                                }
+                            ]
+                        });
+                    }
+
+                    return includes;
+                };
+
+                // Helper function to try finding a design with given filters
+                const tryFindDesign = async (filters) => {
+                    const {
+                        useMetalId,
+                        useKaratId,
+                        useDiamondTypeId,
+                        useClarityId,
+                        useCarat,
+                        useCutId
+                    } = filters;
+
+                    // Find metal rate
+                    let metalRateFilter = null;
+                    let useMetalRateFilter = true;
+                    if (useMetalId && useKaratId) {
+                        metalRateFilter = await MetalRateMaster.findOne({
+                            where: {
+                                metal_id: parseInt(useMetalId),
+                                karat_id: parseInt(useKaratId)
                             }
-                        ]
-                    });
-                } else {
-                    // Include all diamond details if no filter is provided (for plain designs)
-                    includes.push({
-                        model: DesignsDiamondDetails,
-                        as: 'diamond_details',
-                        required: false,
-                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
-                        include: [
-                            { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
-                            {
-                                model: DiamondRate,
-                                as: 'diamond_rate',
-                                attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
-                                include: [
-                                    { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
-                                ]
+                        });
+                        if (!metalRateFilter) {
+                            return null;
+                        }
+                    } else {
+                        // If metal filters not provided, don't filter by metal_rate_id
+                        useMetalRateFilter = false;
+                    }
+
+                    // Find diamond rate if diamond filters are provided
+                    let diamondRateFilter = null;
+                    const hasDiamondFilters = useDiamondTypeId && useClarityId && useCarat;
+
+                    if (hasDiamondFilters) {
+                        const caratValue = parseFloat(useCarat);
+                        const tolerance = 0.000001;
+                        const diamondMasterFilter = await DiamondMaster.findOne({
+                            where: {
+                                carat: {
+                                    [Op.between]: [caratValue - tolerance, caratValue + tolerance]
+                                },
+                                deleted_at: null
                             }
-                        ]
+                        });
+                        if (!diamondMasterFilter) {
+                            return null;
+                        }
+                        diamondRateFilter = await DiamondRate.findOne({
+                            where: {
+                                diamond_type_id: parseInt(useDiamondTypeId),
+                                clarity_id: parseInt(useClarityId),
+                                diamond_master_id: diamondMasterFilter.id
+                            }
+                        });
+                        if (!diamondRateFilter) {
+                            return null;
+                        }
+                    }
+
+                    // Build includes
+                    const includes = buildIncludes(hasDiamondFilters, diamondRateFilter, useCutId);
+
+                    // Find design
+                    const designWhere = { product_id: parseInt(productId) };
+                    if (designId) {
+                        designWhere.id = parseInt(designId);
+                    }
+
+                    // Add metal_rate_id filter only if metal filters were provided
+                    if (useMetalRateFilter && metalRateFilter) {
+                        designWhere.metal_rate_id = metalRateFilter.id;
+                    }
+
+                    const designData = await Designs.findOne({
+                        where: designWhere,
+                        include: includes
                     });
+
+                    return designData;
+                };
+
+                // Track adjusted filters
+                let adjustedFilters = {};
+
+                // Check if original request had diamond filters
+                const originalHasDiamondFilters = diamondTypeId && clarityId && carat;
+
+                // First, try exact match
+                let designData = await tryFindDesign({
+                    useMetalId: metalId,
+                    useKaratId: karatId,
+                    useDiamondTypeId: diamondTypeId,
+                    useClarityId: clarityId,
+                    useCarat: carat,
+                    useCutId: cutId
+                });
+
+                // If exact match not found, try different combinations
+                if (!designData) {
+                    // Define filter removal priority based on last changed filter
+                    // If lastChangedFilter is provided, prioritize removing that one first
+                    const filterRemovalOrder = [];
+
+                    if (lastChangedFilter) {
+                        // Start with the last changed filter
+                        filterRemovalOrder.push(lastChangedFilter);
+                        // Then add others in priority order
+                        const allFilters = ['cut_id', 'carat', 'clarity_id', 'diamond_type_id', 'karat_id', 'metal_id'];
+                        allFilters.forEach(filter => {
+                            if (filter !== lastChangedFilter) {
+                                filterRemovalOrder.push(filter);
+                            }
+                        });
+                    } else {
+                        // Default priority: most specific to least specific
+                        filterRemovalOrder.push('cut_id', 'carat', 'clarity_id', 'diamond_type_id', 'karat_id', 'metal_id');
+                    }
+
+                    // Try removing filters one by one
+                    for (let i = 0; i < filterRemovalOrder.length; i++) {
+                        const filterToRemove = filterRemovalOrder[i];
+                        const filters = {
+                            useMetalId: filterToRemove !== 'metal_id' ? metalId : null,
+                            useKaratId: filterToRemove !== 'karat_id' ? karatId : null,
+                            useDiamondTypeId: filterToRemove !== 'diamond_type_id' ? diamondTypeId : null,
+                            useClarityId: filterToRemove !== 'clarity_id' ? clarityId : null,
+                            useCarat: filterToRemove !== 'carat' ? carat : null,
+                            useCutId: filterToRemove !== 'cut_id' ? cutId : null
+                        };
+
+                        designData = await tryFindDesign(filters);
+                        if (designData) {
+                            // Track which filter was removed
+                            adjustedFilters[filterToRemove] = null;
+                            break;
+                        }
+                    }
+
+                    // If still not found, try removing all diamond filters (keep only metal filters)
+                    if (!designData && originalHasDiamondFilters) {
+                        designData = await tryFindDesign({
+                            useMetalId: metalId,
+                            useKaratId: karatId,
+                            useDiamondTypeId: null,
+                            useClarityId: null,
+                            useCarat: null,
+                            useCutId: null
+                        });
+                        if (designData) {
+                            adjustedFilters = {
+                                diamond_type_id: null,
+                                clarity_id: null,
+                                carat: null,
+                                cut_id: null
+                            };
+                        }
+                    }
+
+                    // If still not found, try with any metal
+                    if (!designData) {
+                        designData = await tryFindDesign({
+                            useMetalId: null,
+                            useKaratId: null,
+                            useDiamondTypeId: null,
+                            useClarityId: null,
+                            useCarat: null,
+                            useCutId: null
+                        });
+                        if (designData) {
+                            adjustedFilters = {
+                                metal_id: null,
+                                karat_id: null,
+                                diamond_type_id: null,
+                                clarity_id: null,
+                                carat: null,
+                                cut_id: null
+                            };
+                        }
+                    }
                 }
 
-                const designData = await Designs.findOne({
-                    where: {
-                        product_id: parseInt(productId),
-                        metal_rate_id: MetalrateFilter.id,
-                    },
-                    include: includes
-                });
                 if (!designData) {
                     return res.status(404).json({
                         success: false,
-                        message: "Design not found"
+                        message: "Design not found with any available filter combination"
                     });
                 }
 
                 // Convert design to JSON to add computed fields
                 const designDataJson = designData.toJSON ? designData.toJSON() : designData;
+
+                // Extract actual filter values from the found design and populate adjustedFilters
+                if (Object.keys(adjustedFilters).length > 0) {
+                    // Get actual metal and karat from the design
+                    if (adjustedFilters.metal_id === null || adjustedFilters.karat_id === null) {
+                        if (designDataJson.metal_rate) {
+                            if (adjustedFilters.metal_id === null) {
+                                adjustedFilters.metal_id = designDataJson.metal_rate.metal_id;
+                            }
+                            if (adjustedFilters.karat_id === null) {
+                                adjustedFilters.karat_id = designDataJson.metal_rate.karat_id;
+                            }
+                        }
+                    }
+
+                    // Get actual diamond filters from the design's diamond details
+                    if (adjustedFilters.diamond_type_id === null || adjustedFilters.clarity_id === null ||
+                        adjustedFilters.carat === null || adjustedFilters.cut_id === null) {
+                        if (designDataJson.diamond_details && designDataJson.diamond_details.length > 0) {
+                            // Use the first diamond detail as the representative
+                            const firstDiamondDetail = designDataJson.diamond_details[0];
+                            if (firstDiamondDetail.diamond_rate) {
+                                if (adjustedFilters.diamond_type_id === null) {
+                                    adjustedFilters.diamond_type_id = firstDiamondDetail.diamond_rate.diamond_type_id;
+                                }
+                                if (adjustedFilters.clarity_id === null) {
+                                    adjustedFilters.clarity_id = firstDiamondDetail.diamond_rate.clarity_id;
+                                }
+                                if (adjustedFilters.carat === null && firstDiamondDetail.diamond_rate.diamond_master) {
+                                    adjustedFilters.carat = firstDiamondDetail.diamond_rate.diamond_master.carat;
+                                }
+                            }
+                            if (adjustedFilters.cut_id === null && firstDiamondDetail.cut_master) {
+                                adjustedFilters.cut_id = firstDiamondDetail.cut_master.id;
+                            }
+                        }
+                    }
+                }
 
                 // Calculate total price
                 // Formula: TotalPrice = (MetalWeight × RatePerGram) + (DiamondPieces × DiamondSize × DiamondRatePerCarat) × Markup
@@ -2999,11 +3345,23 @@ const designController = () => {
                     designDataJson.total_price = "€ " + Math.round(xyz);
                 }
 
-                return res.status(200).json({
+                // Prepare response
+                const response = {
                     success: true,
                     message: "Design variant details fetched successfully",
                     data: designDataJson
-                });
+                };
+
+                // Add adjusted filters information if any filters were adjusted
+                if (Object.keys(adjustedFilters).length > 0) {
+                    response.adjusted_filters = adjustedFilters;
+                    response.message = "Design variant details fetched successfully with adjusted filters";
+                    response.is_design_avl = 0; // 0 = design not available with exact filters, adjusted filters used
+                } else {
+                    response.is_design_avl = 1; // 1 = exact match found, design available with exact filters
+                }
+
+                return res.status(200).json(response);
             } catch (error) {
                 console.log(error);
                 logError(error, req);
