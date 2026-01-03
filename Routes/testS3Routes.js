@@ -32,5 +32,10 @@ Router.post("/delete-file", testS3Controller().testDeleteFile);
 // Body: { "fileKey": "testS3/image/filename.jpg", "expiresIn": 3600 }
 // Router.post("/presigned-url", testS3Controller().testGetPresignedUrl);
 
+// Temporary API to store logo name and logo URL in site settings table
+// POST /api/testS3/store-logo
+// Use multipart/form-data with field name "file"
+Router.post("/store-logo", uploadInS3Image.single("file"), testS3Controller().storeSiteLogo);
+
 module.exports = Router;
 

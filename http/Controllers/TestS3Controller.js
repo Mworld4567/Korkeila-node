@@ -1,5 +1,6 @@
 const logError = require("../../logger/log");
 const { uploadInS3Image, checkFileExists, deleteFromBucket, saveToBucket } = require("../middlewares/awsS3Middleware");
+const SiteSetting = require("../../Models/SiteSetting");
 
 const testS3Controller = () => {
     return {
@@ -245,6 +246,74 @@ const testS3Controller = () => {
                 return res.status(500).json({
                     success: false,
                     message: "Failed to check S3 connection",
+                    error: error.message,
+                });
+            }
+        },
+
+        // Temporary API to store logo name and logo URL in site settings table
+        storeSiteLogo: async (req, res) => {
+            try {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please upload an image file (jpeg/png/jpg)",
+                    });
+                }
+
+                // Validate that file was properly uploaded
+                if (!req.file.key) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "File upload failed: S3 key is missing",
+                    });
+                }
+
+                // Construct CloudFront URL
+                // Files are stored in public/ subfolder, but CloudFront URL should not include 'public/' prefix
+                const cloudfrontUrl = process.env.AWS_URL;
+                
+                // Remove 'public/' prefix from the key for CloudFront URL
+                let urlPath = req.file.key;
+                if (urlPath.startsWith('public/')) {
+                    urlPath = urlPath.substring(7); // Remove 'public/' (7 characters)
+                }
+                
+                // Ensure CloudFront URL ends with '/' and path doesn't start with '/'
+                const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
+                const fileUrl = `${baseUrl}${urlPath}`;
+
+                // Use original filename as logo_name, or extract from key
+                const logoName = req.file.originalname || req.file.key.split('/').pop() || 'logo';
+                const logoUrl = fileUrl;
+
+                // Check if site setting record exists (get first record if any)
+                let siteSetting = await SiteSetting.findOne({ order: [['id', 'ASC']] });
+
+                if (siteSetting) {
+                    // Update existing record
+                    siteSetting.site_logo_name = logoName;
+                    siteSetting.site_logo_url = logoUrl;
+                    await siteSetting.save();
+                } else {
+                    // Create new record
+                    siteSetting = await SiteSetting.create({
+                        site_logo_name: logoName,
+                        site_logo_url: logoUrl,
+                    });
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Logo uploaded and stored successfully",
+                    data: siteSetting,
+                });
+            } catch (error) {
+                console.log("Store Site Logo Error:", error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to upload and store logo",
                     error: error.message,
                 });
             }
