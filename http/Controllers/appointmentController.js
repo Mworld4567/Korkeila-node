@@ -125,7 +125,7 @@ const appointmentController = () => {
                                     <p><strong>Time Slot:</strong> ${appointmentData.time_slot}</p>
                                     ${appointmentData.description ? `<p><strong>Description:</strong> ${appointmentData.description}</p>` : ''}
                                 </div>
-                                <p>Best regards,<br>Korkeila Team</p>
+                                <p>Kind regards,<br>Korkeila Helsinki</p>
                             </div>
                         </body>
                     </html>
