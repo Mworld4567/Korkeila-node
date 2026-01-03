@@ -1,4 +1,5 @@
 const Appointment = require("../../Models/Appointment");
+const SiteSetting = require("../../Models/SiteSetting");
 const logError = require("../../logger/log");
 const logMiddleware = require("../middlewares/logMiddleware");
 const helperFunc = require("../../helpers/helperFunc");
@@ -107,13 +108,22 @@ const appointmentController = () => {
                     inquiryMessage = "Thank you for your inquiry. We will be in touch soon.";
                 }
 
+                // Fetch site logo from site-settings
+                const siteSetting = await SiteSetting.findOne({ order: [['id', 'ASC']] });
+                const logoUrl = siteSetting && siteSetting.site_logo_url ? siteSetting.site_logo_url : null;
+
                 // Prepare email content
                 const emailSubject = "Appointment Confirmation";
                 const emailHtml = `
                     <html>
                         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                                <h2 style="color: #4a5568;">Appointment Confirmation</h2>
+                                ${logoUrl ? `
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <img src="${logoUrl}" alt="Logo" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
+                                </div>
+                                ` : ''}
+                                <h2 style="color: #4a5568; text-align: center;">Appointment Confirmation</h2>
                                 <p>Dear ${appointmentData.first_name} ${appointmentData.last_name},</p>
                                 <p>${inquiryMessage}</p>
                                 <div style="background-color: #f7fafc; padding: 15px; border-radius: 5px; margin: 20px 0;">
