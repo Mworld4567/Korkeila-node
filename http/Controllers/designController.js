@@ -2848,11 +2848,13 @@ const designController = () => {
                         name: diamondTypeTranslationsMap.has(type.id)
                             ? diamondTypeTranslationsMap.get(type.id)
                             : type.type_name,
-                        code: type.type_code
+                        code: type.type_code,
+                        is_lab: (type.type_code === 'LBS' || (type.type_code && type.type_code.toLowerCase().includes('lab'))) ? 1 : 0
                     })),
                     clarities: diamondClarities.map(clarity => ({
                         id: clarity.id,
-                        name: clarity.clarity
+                        name: clarity.clarity,
+                        is_lab: (clarity.clarity && clarity.clarity.toLowerCase() === 'fvvs') ? 1 : 0
                     })),
                     carats: diamondCarats.map(carat => ({
                         id: carat.id,
