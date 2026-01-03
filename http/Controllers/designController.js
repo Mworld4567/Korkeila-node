@@ -28,6 +28,7 @@ const fs = require("fs");
 const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
 const { priceFlag, filterAvailable, languageId } = require("../../config/globalVariable");
 const converter = require("json-2-csv");
+const CategoryTranslation = require("../../Models/CategoryTranslation");
 
 const designController = () => {
     return {
@@ -3877,92 +3878,318 @@ const designController = () => {
         },
         relatedProductDetailsForEcom: async (req, res) => {
             try {
-            
-                const productId = req.query.product_id;
-                const designId = req.query.design_id;
-                const languageId = req.query.language_id;
+            // Build where clause conditionally
+            const productWhere = {
+                is_display: 1,
+                category_id: req.query.category_id
+            };
 
-                if (!productId) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Please provide product_id"
-                    });
-                }
+            // Only add sub_category_id filter if it's provided
+            if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
+                productWhere.sub_category_id = req.query.sub_category_id;
+            }
 
-                if (!designId) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Please provide design_id"
-                    });
-                }
+            // Only add style_id filter if it's provided
+            if (req.query.style_id !== undefined && req.query.style_id !== null && req.query.style_id !== '') {
+                productWhere.style_id = req.query.style_id;
+            }
 
-                if (!languageId) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Please provide language_id"
-                    });
-                }
+            // Exclude product_id if provided in query params
+            if (req.query.product_id !== undefined && req.query.product_id !== null && req.query.product_id !== '') {
+                productWhere.id = { [Op.ne]: req.query.product_id };
+            }
 
-                // Get 3 other designs with same productId, excluding current designId
-                const relatedDesigns = await Designs.findAll({
-                    where: {
-                        product_id: productId,
-                        id: { [Op.ne]: designId }
-                    },
-                    limit: 3,
-                    include: [
-                        {
-                            model: DesignTranslation,
-                            as: 'design_translations',
-                            where: { language_id: languageId },
-                            attributes: ['id', 'language_id', 'design_variant_name'],
-                            required: true
-                        },
-                        {
-                            model: MetalRateMaster,
-                            as: 'metal_rate',
-                            attributes: ['id', 'rate'],
-                            required: true
-                        },
-                        {
-                            model: DesignsImages,
-                            as: 'images',
-                            attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-                            separate: true,
-                            order: [['is_product_listing', 'DESC'], ['order', 'ASC'], ['id', 'ASC']],
-                            limit: 1
-                        },
-                    ],
-                    order: [['id', 'DESC']]
-                });
+            // Fetch products first
+            const products = await Product.findAll({
+                where: productWhere,
+                attributes: ['id', 'image', "category_id", "sub_category_id", "style_id"]
+            });
 
-                // Format response with only required fields
-                const formattedData = relatedDesigns.map(design => {
-                    const translation = design.design_translations && design.design_translations.length > 0 
-                        ? design.design_translations[0] 
-                        : null;
-                    const image = design.images && design.images.length > 0 
-                        ? design.images[0] 
-                        : null;
-                    const rate = design.metal_rate ? design.metal_rate.rate : null;
-                    const formattedPrice = rate !== null ? "€ " + Math.round(rate) : null;
+            // Get all product IDs
+            const productIds = products.map(p => p.id);
 
-                    return {
-                        product_id: design.product_id,
-                        design_id: design.id,
-                        language_id: translation ? translation.language_id : null,
-                        design_variant_name: translation ? translation.design_variant_name : null,
-                        price: formattedPrice,
-                        image_url: image && image.image_name ? constructImageUrl(image.image_name, 'design') : null,
-                        image_name: image ? image.image_name : null
-                    };
-                });
-
+            if (productIds.length === 0) {
                 return res.status(200).json({
                     success: true,
-                    message: "Related product details fetched successfully",
-                    data: formattedData
+                    message: "Product list fetched successfully",
+                    data: [],
                 });
+            }
+
+            // Fetch translations for these products
+            const translations = await ProductTranslation.findAll({
+                attributes: ['id', 'product_id', 'product_name'],
+                where: {
+                    product_id: { [Op.in]: productIds },
+                    language_id: req.query.language_id
+                }
+            });
+
+            // Create a map of product_id to translation
+            const translationMap = new Map();
+            translations.forEach(t => {
+                translationMap.set(t.product_id, t);
+            });
+
+            // Combine products with translations
+            const productData = products.map(product => {
+                const translation = translationMap.get(product.id);
+                return {
+                    product: product.toJSON ? product.toJSON() : product,
+                    product_name: translation ? translation.product_name : null,
+                    translation: translation ? translation.toJSON ? translation.toJSON() : translation : null
+                };
+            }).filter(item => item.product_name !== null); // Filter out products without translation
+
+            // Get filtered product IDs (only those with translations)
+            const filteredProductIds = productData.map(item => item.product.id);
+
+            if (filteredProductIds.length === 0) {
+                return res.status(200).json({
+                    success: true,
+                    message: "Product list fetched successfully",
+                    data: [],
+                });
+            }
+
+            // Fetch all designs for these products with full details
+            const allDesigns = await Designs.findAll({
+                where: {
+                    product_id: { [Op.in]: filteredProductIds },
+                    price_flag: { [Op.ne]: 0 }
+                },
+                include: [
+                    {
+                        model: MetalRateMaster,
+                        as: 'metal_rate',
+                        attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                        include: [
+                            { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                            { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                        ]
+                    },
+                    {
+                        model: DesignsDiamondDetails,
+                        as: 'diamond_details',
+                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                        include: [
+                            { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                            {
+                                model: DiamondRate,
+                                as: 'diamond_rate',
+                                attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                include: [
+                                    { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        model: DesignsImages,
+                        as: 'images',
+                        attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                        separate: true,
+                        order: [['order', 'ASC']]
+                    },
+                    {
+                        model: Product,
+                        as: 'product',
+                        include: [
+                            { 
+                                model: Category, 
+                                as: 'category', 
+                                attributes: ['id', 'category_code', 'image'],
+                                include: [
+                                    {
+                                        model: CategoryTranslation,
+                                        as: 'category_translations',
+                                        attributes: ['id', 'category_name', 'language_id'],
+                                        where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                                        required: false
+                                    }
+                                ]
+                            },
+                            { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                            { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                        ]
+                    },
+                    {
+                        model: DesignTranslation,
+                        as: 'design_translations',
+                        attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
+                        where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                        required: false,
+                        include: [
+                            { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                        ]
+                    }
+                ]
+            });
+
+            // Calculate price for each design and group by product_id
+            const designsByProduct = new Map();
+            
+            allDesigns.forEach(design => {
+                if (!designsByProduct.has(design.product_id)) {
+                    designsByProduct.set(design.product_id, []);
+                }
+                designsByProduct.get(design.product_id).push(design);
+            });
+
+            // Process category translations to flatten category_name
+            allDesigns.forEach(design => {
+                if (design.product && design.product.category && design.product.category.category_translations) {
+                    const translations = design.product.category.category_translations;
+                    if (translations && translations.length > 0) {
+                        // Use the first translation (should be only one due to where clause)
+                        design.product.category.category_name = translations[0].category_name;
+                    }
+                    // Remove the translations array to keep structure clean
+                    delete design.product.category.category_translations;
+                }
+            });
+
+            // Calculate total price for each design
+            // Formula: TotalPrice = ((MetalWeight × RatePerGram) + (DiamondPieces × DiamondSize × DiamondRatePerCarat)) × Markup
+            const designsWithPrice = [];
+            
+            for (const [productId, designs] of designsByProduct.entries()) {
+                for (const design of designs) {
+                    // Metal cost calculation
+                    const metalWeight = parseFloat(design.metal_weight) || 0;
+                    const ratePerGram = parseFloat(design.metal_rate?.rate) || 0;
+                    const metalCost = metalWeight * ratePerGram;
+
+                    // Diamond cost calculation (sum of all diamond details)
+                    let diamondCost = 0;
+                    if (design.diamond_details && design.diamond_details.length > 0) {
+                        design.diamond_details.forEach(diamondDetail => {
+                            const diamondPieces = parseInt(diamondDetail.pcs) || 0;
+                            const diamondSize = parseFloat(diamondDetail.diamond_rate?.diamond_master?.carat) || 0;
+                            const diamondRatePerCarat = parseFloat(diamondDetail.diamond_rate?.rate) || 0;
+
+                            diamondCost += diamondPieces * diamondSize * diamondRatePerCarat;
+                        });
+                    }
+
+                    // Markup - default to 1 if 0, null, or undefined
+                    const markUpValue = design.mark_up != null ? parseFloat(design.mark_up) : 1;
+                    const markup = markUpValue > 0 ? markUpValue : 1;
+
+                    // Total price calculation
+                    const xyz = (metalCost + diamondCost) * markup;
+
+                    designsWithPrice.push({
+                        product_id: productId,
+                        design_id: design.id,
+                        design: design,
+                        totalPrice: xyz
+                    });
+                }
+            }
+
+            // Find lowest priced design for each product
+            const lowestPriceByProduct = new Map();
+            designsWithPrice.forEach(item => {
+                if (!lowestPriceByProduct.has(item.product_id)) {
+                    lowestPriceByProduct.set(item.product_id, item);
+                } else {
+                    const current = lowestPriceByProduct.get(item.product_id);
+                    if (item.totalPrice < current.totalPrice) {
+                        lowestPriceByProduct.set(item.product_id, item);
+                    }
+                }
+            });
+
+            // Build response with lowest priced variant for each product, including all details
+            const dataWithUrls = productData.map(item => {
+                const productId = item.product.id;
+                const lowestPriceDesign = lowestPriceByProduct.get(productId);
+                
+                if (!lowestPriceDesign) {
+                    return {
+                        id: productId,
+                        product_name: item.product_name,
+                        image: constructImageUrl(item.product.image, 'product'),
+                        category_id: item.product.category_id,
+                        sub_category_id: item.product.sub_category_id,
+                        style_id: item.product.style_id,
+                        design: null,
+                        total_price: null
+                    };
+                }
+
+                // Convert design to JSON to add computed fields
+                const designData = lowestPriceDesign.design.toJSON ? lowestPriceDesign.design.toJSON() : lowestPriceDesign.design;
+
+                // Construct full image URLs for all design images
+                if (designData.images && Array.isArray(designData.images)) {
+                    designData.images = designData.images.map(img => ({
+                        id: img.id,
+                        image: img.image_name,
+                        image_url: constructImageUrl(img.image_name, 'design'),
+                        order: img.order,
+                        is_product_listing: img.is_product_listing,
+                    }));
+                }
+
+                // If language_id is provided, return single translation object instead of array
+                if (req.query.language_id && designData.design_translations && Array.isArray(designData.design_translations)) {
+                    if (designData.design_translations.length > 0) {
+                        designData.design_translation = designData.design_translations[0];
+                    } else {
+                        designData.design_translation = null;
+                    }
+                    delete designData.design_translations;
+                }
+
+                // Get image where is_product_listing is 1, or use product image as fallback
+                let productImage = constructImageUrl(item.product.image, 'product');
+                if (designData.images && designData.images.length > 0) {
+                    const listingImage = designData.images.find(img => img.is_product_listing === 1);
+                    if (listingImage) {
+                        productImage = listingImage.image_url;
+                    }
+                }
+
+                // Add total_price to design data
+                // If price_flag is 0, show appointment message instead of total price
+                if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
+                    designData.total_price = `Starting from € ${Math.round(lowestPriceDesign.totalPrice)}, please book an appointment`;
+                } else {
+                    designData.total_price = "€ " + Math.round(lowestPriceDesign.totalPrice);
+                }
+
+                return {
+                    id: productId,
+                    product_name: item.product_name,
+                    image: productImage,
+                    category_id: item.product.category_id,
+                    sub_category_id: item.product.sub_category_id,
+                    style_id: item.product.style_id,
+                    design: designData,
+                    total_price: designData.total_price
+                };
+            });
+
+            // Filter out the excluded product_id (if still present) and get random 3 products
+            const filteredData = dataWithUrls.filter(item => {
+                if (req.query.product_id !== undefined && req.query.product_id !== null && req.query.product_id !== '') {
+                    return item.id !== parseInt(req.query.product_id);
+                }
+                return true;
+            });
+
+            // Shuffle array randomly and take only 3 items
+            const shuffled = filteredData.sort(() => Math.random() - 0.5);
+            const randomThree = shuffled.slice(0, 3);
+
+            return res.status(200).json({
+                success: true,
+                message: "Related product details fetched successfully",
+                data: randomThree,
+            });
+         
             } catch (error) {
                 console.log(error);
                 logError(error, req);
