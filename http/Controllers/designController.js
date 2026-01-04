@@ -41,13 +41,215 @@ const designController = () => {
                 const limit = parseInt(req.query.limit) || 1000;
                 const offset = (page - 1) * limit;
 
+                // Get search parameter from query
+                const searchTerm = req.query.search ? req.query.search.trim() : null;
 
-                // Get total count and fetch designs with pagination
-                const { count, rows: designs } = await Designs.findAndCountAll({
-                    order: [['id', 'DESC']],
-                    limit: limit,
-                    offset: offset
-                });
+                // Build search conditions
+                let whereCondition = {};
+                let matchingDesignIds = null;
+
+                if (searchTerm) {
+                    const searchPattern = `%${searchTerm}%`;
+                    const numericSearch = parseFloat(searchTerm);
+                    const isNumeric = !isNaN(numericSearch);
+
+                    // Collect all design IDs that match the search criteria
+                    const matchingIds = new Set();
+
+                    // Search in direct fields on Designs table
+                    const directMatches = await Designs.findAll({
+                        where: {
+                            [Op.or]: [
+                                { design_variant_name: { [Op.like]: searchPattern } },
+                                { metal_weight: isNumeric ? { [Op.eq]: numericSearch } : { [Op.like]: searchPattern } },
+                                { mark_up: isNumeric ? { [Op.eq]: numericSearch } : { [Op.like]: searchPattern } }
+                            ]
+                        },
+                        attributes: ['id']
+                    });
+                    directMatches.forEach(d => matchingIds.add(d.id));
+
+                    // Search in DesignTranslation for design_variant_name
+                    const translationMatches = await DesignTranslation.findAll({
+                        where: {
+                            design_variant_name: { [Op.like]: searchPattern },
+                            language_id: languageId.English
+                        },
+                        attributes: ['design_id']
+                    });
+                    translationMatches.forEach(t => matchingIds.add(t.design_id));
+
+                    // Search in MetalRateMaster for metal_rate_name
+                    // First, find matching metals and karats
+                    const matchingMetals = await Metal.findAll({
+                        where: { metal_name: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    const matchingKarats = await Karat.findAll({
+                        where: { karat: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    
+                    const metalIds = matchingMetals.map(m => m.id);
+                    const karatIds = matchingKarats.map(k => k.id);
+                    
+                    // Find metal rates that match
+                    const metalRateWhere = {};
+                    if (metalIds.length > 0 || karatIds.length > 0) {
+                        metalRateWhere[Op.or] = [];
+                        if (metalIds.length > 0) {
+                            metalRateWhere[Op.or].push({ metal_id: { [Op.in]: metalIds } });
+                        }
+                        if (karatIds.length > 0) {
+                            metalRateWhere[Op.or].push({ karat_id: { [Op.in]: karatIds } });
+                        }
+                    }
+                    
+                    if (metalIds.length > 0 || karatIds.length > 0) {
+                        const metalRateMatches = await MetalRateMaster.findAll({
+                            where: metalRateWhere,
+                            attributes: ['id']
+                        });
+                        const metalRateIds = metalRateMatches.map(mr => mr.id);
+                        if (metalRateIds.length > 0) {
+                            const designsWithMetalRate = await Designs.findAll({
+                                where: { metal_rate_id: { [Op.in]: metalRateIds } },
+                                attributes: ['id']
+                            });
+                            designsWithMetalRate.forEach(d => matchingIds.add(d.id));
+                        }
+                    }
+
+                    // Search in DesignsDiamondDetails for diamond_design_detail
+                    // First, find matching cut masters, diamond masters, diamond types, and clarities
+                    const matchingCuts = await CutMaster.findAll({
+                        where: { cut_name: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    const matchingDiamondMasters = await DiamondMaster.findAll({
+                        where: isNumeric ? { carat: numericSearch } : { carat: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    const matchingDiamondTypes = await DiamondType.findAll({
+                        where: { type_name: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    const matchingClarities = await DiamondClarity.findAll({
+                        where: { clarity: { [Op.like]: searchPattern } },
+                        attributes: ['id']
+                    });
+                    
+                    const cutIds = matchingCuts.map(c => c.id);
+                    const diamondMasterIds = matchingDiamondMasters.map(dm => dm.id);
+                    const diamondTypeIds = matchingDiamondTypes.map(dt => dt.id);
+                    const clarityIds = matchingClarities.map(c => c.id);
+                    
+                    // Find diamond rates that match
+                    const diamondRateWhere = {};
+                    if (diamondMasterIds.length > 0 || diamondTypeIds.length > 0 || clarityIds.length > 0) {
+                        diamondRateWhere[Op.or] = [];
+                        if (diamondMasterIds.length > 0) {
+                            diamondRateWhere[Op.or].push({ diamond_master_id: { [Op.in]: diamondMasterIds } });
+                        }
+                        if (diamondTypeIds.length > 0) {
+                            diamondRateWhere[Op.or].push({ diamond_type_id: { [Op.in]: diamondTypeIds } });
+                        }
+                        if (clarityIds.length > 0) {
+                            diamondRateWhere[Op.or].push({ clarity_id: { [Op.in]: clarityIds } });
+                        }
+                    }
+                    
+                    const diamondRateIds = [];
+                    if (diamondMasterIds.length > 0 || diamondTypeIds.length > 0 || clarityIds.length > 0) {
+                        const matchingDiamondRates = await DiamondRate.findAll({
+                            where: diamondRateWhere,
+                            attributes: ['id']
+                        });
+                        matchingDiamondRates.forEach(dr => diamondRateIds.push(dr.id));
+                    }
+                    
+                    // Find diamond details that match
+                    const diamondDetailWhere = {};
+                    if (cutIds.length > 0 || diamondRateIds.length > 0) {
+                        diamondDetailWhere[Op.or] = [];
+                        if (cutIds.length > 0) {
+                            diamondDetailWhere[Op.or].push({ cut_master_id: { [Op.in]: cutIds } });
+                        }
+                        if (diamondRateIds.length > 0) {
+                            diamondDetailWhere[Op.or].push({ diamond_rate_id: { [Op.in]: diamondRateIds } });
+                        }
+                    }
+                    
+                    if (cutIds.length > 0 || diamondRateIds.length > 0) {
+                        const diamondDetailsMatches = await DesignsDiamondDetails.findAll({
+                            where: diamondDetailWhere,
+                            attributes: ['design_id']
+                        });
+                        diamondDetailsMatches.forEach(dd => matchingIds.add(dd.design_id));
+                    }
+
+                    matchingDesignIds = Array.from(matchingIds);
+                    
+                    if (matchingDesignIds.length === 0) {
+                        return res.status(200).json({
+                            success: true,
+                            message: "Designs fetched successfully",
+                            data: [],
+                            total_count: 0,
+                            total_pages: 0,
+                            current_page: page,
+                            limit: limit,
+                        });
+                    }
+
+                    whereCondition = {
+                        id: { [Op.in]: matchingDesignIds }
+                    };
+                }
+
+                // For search, we need to fetch all matching designs first, then filter and paginate
+                // This ensures correct pagination when filtering by calculated fields
+                let allMatchingDesigns = [];
+                let totalMatchingCount = 0;
+                let usePostFilterPagination = false;
+
+                if (searchTerm && matchingDesignIds) {
+                    // Fetch all matching designs (without pagination limit)
+                    // We'll filter and paginate after building response data
+                    allMatchingDesigns = await Designs.findAll({
+                        where: whereCondition,
+                        order: [['id', 'DESC']]
+                    });
+                    totalMatchingCount = allMatchingDesigns.length;
+                    usePostFilterPagination = true;
+                } else {
+                    // No search - use normal pagination
+                    const result = await Designs.findAndCountAll({
+                        where: whereCondition,
+                        order: [['id', 'DESC']],
+                        limit: limit,
+                        offset: offset
+                    });
+                    allMatchingDesigns = result.rows;
+                    totalMatchingCount = result.count;
+                    usePostFilterPagination = false;
+                }
+
+                // If no designs found, return early
+                if (allMatchingDesigns.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Designs fetched successfully",
+                        data: [],
+                        total_count: 0,
+                        total_pages: 0,
+                        current_page: page,
+                        limit: limit,
+                    });
+                }
+
+                // Use all matching designs for building response
+                const designs = allMatchingDesigns;
 
                 if (designs.length === 0) {
                     return res.status(200).json({
@@ -248,16 +450,87 @@ const designController = () => {
                             is_product_listing: img.is_product_listing,
                         })),
                         image_count: image_count,
-                        total_price: "€ " + Math.round(totalPrice)
+                        total_price: "€ " + Math.round(totalPrice),
+                        _total_price_numeric: Math.round(totalPrice) // Store numeric value for filtering
                     };
                 });
+
+                // Filter by calculated fields and verify search matches
+                let filteredResponseData = responseData;
+                if (searchTerm) {
+                    const searchLower = searchTerm.toLowerCase();
+                    const numericSearch = parseFloat(searchTerm);
+                    const isNumeric = !isNaN(numericSearch);
+
+                    filteredResponseData = responseData.filter(item => {
+                        // Check design_variant_name
+                        const matchesDesignVariantName = item.design_variant_name && 
+                            item.design_variant_name.toLowerCase().includes(searchLower);
+                        
+                        // Check product_name
+                        const matchesProductName = item.product_name && 
+                            item.product_name.toLowerCase().includes(searchLower);
+                        
+                        // Check metal_rate_name
+                        const matchesMetalRateName = item.metal_rate_name && 
+                            item.metal_rate_name.toLowerCase().includes(searchLower);
+                        
+                        // Check weight
+                        const matchesWeight = isNumeric ? 
+                            parseFloat(item.weight) === numericSearch : 
+                            String(item.weight).toLowerCase().includes(searchLower);
+                        
+                        // Check mark_up
+                        const matchesMarkUp = isNumeric ? 
+                            parseFloat(item.mark_up) === numericSearch : 
+                            String(item.mark_up).toLowerCase().includes(searchLower);
+                        
+                        // Check total_price (numeric value)
+                        const matchesTotalPrice = isNumeric && 
+                            item._total_price_numeric === numericSearch;
+                        
+                        // Check diamond_design_detail
+                        const matchesDiamondDetail = item.diamond_design_detail && 
+                            item.diamond_design_detail.some(dd => {
+                                const cutNameMatch = dd.cut_name && 
+                                    dd.cut_name.toLowerCase().includes(searchLower);
+                                const diamondRateNameMatch = dd.diamond_rate_name && 
+                                    dd.diamond_rate_name.toLowerCase().includes(searchLower);
+                                return cutNameMatch || diamondRateNameMatch;
+                            });
+
+                        return matchesDesignVariantName || matchesProductName || 
+                               matchesMetalRateName || matchesWeight || 
+                               matchesMarkUp || matchesTotalPrice || matchesDiamondDetail;
+                    });
+                }
+
+                // Remove the temporary _total_price_numeric field
+                filteredResponseData = filteredResponseData.map(item => {
+                    const { _total_price_numeric, ...rest } = item;
+                    return rest;
+                });
+
+                // Apply pagination to filtered results (only if search was used)
+                let finalCount, paginatedData, finalTotalPages;
+                if (usePostFilterPagination) {
+                    // Search was used - apply pagination to filtered results
+                    finalCount = filteredResponseData.length;
+                    paginatedData = filteredResponseData.slice(offset, offset + limit);
+                    finalTotalPages = Math.ceil(finalCount / limit);
+                } else {
+                    // No search - data is already paginated from database
+                    finalCount = totalMatchingCount;
+                    paginatedData = filteredResponseData;
+                    finalTotalPages = Math.ceil(finalCount / limit);
+                }
 
                 return res.status(200).json({
                     success: true,
                     message: "Designs fetched successfully",
-                    data: responseData,
-                    total_count: count,
-                    total_pages: Math.ceil(count / limit),
+                    data: paginatedData,
+                    total_count: finalCount,
+                    total_pages: finalTotalPages,
                     current_page: page,
                     limit: limit,
                 });
