@@ -2548,6 +2548,8 @@ const designController = () => {
             try {
                 const languageId = req.query.language_id || req.body.language_id;
                 const productId = req.query.product_id || req.body.product_id;
+                const cutId = req.query.cut_id || req.body.cut_id;
+                const diamondTypeId = req.query.diamond_type_id || req.body.diamond_type_id;
 
                 // Build product filter - only active products (is_display = 1)
                 const productWhere = {
@@ -2659,9 +2661,50 @@ const designController = () => {
                 const metalMap = new Map();
                 const karatMap = new Map();
 
+                // First pass: Extract all cuts and diamond_types (always show all available options)
                 designs.forEach(design => {
-                    // Extract metal and karat from metal_rate
-                    if (design.metal_rate) {
+                    if (design.diamond_details && design.diamond_details.length > 0) {
+                        design.diamond_details.forEach(detail => {
+                            // Extract cut (always extract all cuts)
+                            if (detail.cut_master_id) {
+                                cutIds.add(detail.cut_master_id);
+                                if (detail.cut_master) {
+                                    cutMap.set(detail.cut_master.id, detail.cut_master);
+                                }
+                            }
+
+                            // Extract diamond_type (always extract all diamond_types)
+                            if (detail.diamond_rate && detail.diamond_rate.diamond_type_id) {
+                                diamondTypeIds.add(detail.diamond_rate.diamond_type_id);
+                                if (detail.diamond_rate.diamond_type) {
+                                    diamondTypeMap.set(detail.diamond_rate.diamond_type.id, detail.diamond_rate.diamond_type);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Second pass: Extract dependent options (carats, clarities, metals, karats)
+                // If cut_id and diamond_type_id are provided, only extract from matching designs
+                designs.forEach(design => {
+                    let shouldIncludeDesign = true;
+                    let matchingDiamondDetails = [];
+
+                    // Filter diamond_details if cut_id and diamond_type_id are provided
+                    if (cutId && diamondTypeId && design.diamond_details && design.diamond_details.length > 0) {
+                        matchingDiamondDetails = design.diamond_details.filter(detail => {
+                            const matchesCut = parseInt(detail.cut_master_id) === parseInt(cutId);
+                            const matchesType = detail.diamond_rate && parseInt(detail.diamond_rate.diamond_type_id) === parseInt(diamondTypeId);
+                            return matchesCut && matchesType;
+                        });
+                        // Only include design if it has matching diamond details
+                        shouldIncludeDesign = matchingDiamondDetails.length > 0;
+                    } else {
+                        matchingDiamondDetails = design.diamond_details || [];
+                    }
+
+                    // Extract metal and karat from metal_rate (only if matching criteria or if filters not provided)
+                    if (shouldIncludeDesign && design.metal_rate) {
                         if (design.metal_rate.metal_id) {
                             metalIds.add(design.metal_rate.metal_id);
                             if (design.metal_rate.metal) {
@@ -2676,25 +2719,11 @@ const designController = () => {
                         }
                     }
 
-                    // Extract diamond-related data from diamond_details
-                    if (design.diamond_details && design.diamond_details.length > 0) {
-                        design.diamond_details.forEach(detail => {
-                            // Extract cut
-                            if (detail.cut_master_id) {
-                                cutIds.add(detail.cut_master_id);
-                                if (detail.cut_master) {
-                                    cutMap.set(detail.cut_master.id, detail.cut_master);
-                                }
-                            }
-
-                            // Extract diamond rate data
+                    // Extract diamond-related dependent data from matching diamond_details only
+                    if (shouldIncludeDesign && matchingDiamondDetails.length > 0) {
+                        matchingDiamondDetails.forEach(detail => {
+                    // Extract diamond rate data (carats, clarities)
                             if (detail.diamond_rate) {
-                                if (detail.diamond_rate.diamond_type_id) {
-                                    diamondTypeIds.add(detail.diamond_rate.diamond_type_id);
-                                    if (detail.diamond_rate.diamond_type) {
-                                        diamondTypeMap.set(detail.diamond_rate.diamond_type.id, detail.diamond_rate.diamond_type);
-                                    }
-                                }
                                 if (detail.diamond_rate.clarity_id) {
                                     clarityIds.add(detail.diamond_rate.clarity_id);
                                     if (detail.diamond_rate.clarity) {
