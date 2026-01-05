@@ -3332,7 +3332,7 @@ const designController = () => {
                                 cut_master_id: useCutId
                             },
                             required: true,
-                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                            // attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
                             include: [
                                 { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
                                 {
@@ -3351,7 +3351,7 @@ const designController = () => {
                             model: DesignsDiamondDetails,
                             as: 'diamond_details',
                             required: false,
-                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                            // attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
                             include: [
                                 { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
                                 {
