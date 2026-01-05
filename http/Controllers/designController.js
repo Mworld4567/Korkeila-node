@@ -3819,201 +3819,194 @@ const designController = () => {
                             designObj.category_id = product.category_id;
                             designObj.sub_category_id = product.sub_category_id;
                         }
-                        // Process English translation
-                        if (x["Design Variant Name(EN)"].trim() !== "") {
-                            designObj.design_variant_name = x["Design Variant Name(EN)"].trim();
-                            designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
-                            designTranslationObjEN.language_id = languageId.English;
-                        } else {
-                            validationSting.push("Design variant name(EN) is required");
-                        }
-                        if (x["Description(EN)"].trim() !== "") {
-                            designTranslationObjEN.description = x["Description(EN)"].trim();
-                        } else {
-                            validationSting.push("Description(EN) is required");
-                        }
+                        
+                    }
+                    // Process English translation
+                    if (x["Design Variant Name(EN)"].trim() !== "") {
+                        designObj.design_variant_name = x["Design Variant Name(EN)"].trim();
+                        designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
+                        designTranslationObjEN.language_id = languageId.English;
+                    } 
+                    if (x["Description(EN)"].trim() !== "") {
+                        designTranslationObjEN.description = x["Description(EN)"].trim();
+                    } 
 
-                        // Process Finnish translation
-                        if (x["Design Variant Name(FN)"].trim() !== "") {
-                            designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
-                            designTranslationObjFN.language_id = languageId.Finnish;
-                        } else {
-                            validationSting.push("Design variant name(FN) is required");
-                        }
-                        if (x["Description(FN)"].trim() !== "") {
-                            designTranslationObjFN.description = x["Description(FN)"].trim();
-                        } else {
-                            validationSting.push("Description(FN) is required");
-                        }
-                        if (x["Metal name"].trim() !== "") {
-                            const metal = await Metal.findOne({
-                                where: {
-                                    metal_name: x["Metal name"].trim(),
-                                }
-                            });
-                            if (metal) {
-                                metalCode = metal.metal_code || null;
-                                if (x["Karat"].trim() !== "") {
-                                    const karat = await Karat.findOne({
+                    // Process Finnish translation
+                    if (x["Design Variant Name(FN)"].trim() !== "") {
+                        designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
+                        designTranslationObjFN.language_id = languageId.Finnish;
+                    } 
+                    if (x["Description(FN)"].trim() !== "") {
+                        designTranslationObjFN.description = x["Description(FN)"].trim();
+                    } 
+                    if (x["Metal name"].trim() !== "") {
+                        const metal = await Metal.findOne({
+                            where: {
+                                metal_name: x["Metal name"].trim(),
+                            }
+                        });
+                        if (metal) {
+                            metalCode = metal.metal_code || null;
+                            if (x["Karat"].trim() !== "") {
+                                const karat = await Karat.findOne({
+                                    where: {
+                                        karat: x["Karat"].trim(),
+                                    }
+                                });
+                                if (karat) {
+                                    karatValue = karat.karat;
+                                    const MetalRateId = await MetalRateMaster.findOne({
                                         where: {
-                                            karat: x["Karat"].trim(),
+                                            karat_id: karat.id,
+                                            metal_id: metal.id,
                                         }
                                     });
-                                    if (karat) {
-                                        karatValue = karat.karat;
-                                        const MetalRateId = await MetalRateMaster.findOne({
-                                            where: {
-                                                karat_id: karat.id,
-                                                metal_id: metal.id,
-                                            }
-                                        });
-                                        if (MetalRateId) {
-                                            designObj.metal_rate_id = MetalRateId.id;
-                                        } else {
-                                            validationSting.push("Metal rate not found");
-                                        }
+                                    if (MetalRateId) {
+                                        designObj.metal_rate_id = MetalRateId.id;
                                     } else {
-                                        validationSting.push("Karat not found");
+                                        validationSting.push("Metal rate not found");
                                     }
                                 } else {
-                                    validationSting.push("Karat is required");
+                                    validationSting.push("Karat not found");
                                 }
                             } else {
-                                validationSting.push("Metal name not found");
+                                validationSting.push("Karat is required");
                             }
                         } else {
-                            validationSting.push("Metal name is required");
+                            validationSting.push("Metal name not found");
                         }
+                    } 
 
-                        if (x["Weight"].trim() !== "") {
-                            designObj.metal_weight = x["Weight"].trim();
-                        }
-                        if (x["Mark Up"].trim() !== "") {
-                            designObj.mark_up = x["Mark Up"].trim();
-                        }
-                        if (x["Diamond Cut"].trim() !== "") {
-                            const diamondCut = await CutMaster.findOne({
-                                where: {
-                                    cut_name: x["Diamond Cut"].trim(),
-                                }
-                            });
-                            if (diamondCut) {
-                                designDiamondDetailsObj.cut_master_id = diamondCut.id;
-                            } else {
-                                validationSting.push("Diamond cut not found");
+                    if (x["Weight"].trim() !== "") {
+                        designObj.metal_weight = x["Weight"].trim();
+                    }
+                    if (x["Mark Up"].trim() !== "") {
+                        designObj.mark_up = x["Mark Up"].trim();
+                    }
+                    if (x["Price flag"].trim() !== "") {
+                        designObj.price_flag = x["Price flag"].trim();
+                    }
+                    if (x["Diamond Cut"].trim() !== "") {
+                        const diamondCut = await CutMaster.findOne({
+                            where: {
+                                cut_name: x["Diamond Cut"].trim(),
                             }
+                        });
+                        if (diamondCut) {
+                            designDiamondDetailsObj.cut_master_id = diamondCut.id;
+                        } else {
+                            validationSting.push("Diamond cut not found");
                         }
-                        if (x["Diamond Carat"].trim() !== "" && x["Diamond Type"].trim() !== "" && x["Diamond Clarity"].trim() !== "") {
-                            const caratValue = parseFloat(x["Diamond Carat"].trim());
-                            const epsilon = 0.0001; // Small tolerance for floating-point comparison
-                            const DiamondMasterDetails = await DiamondMaster.findOne({
-                                where: {
-                                    carat: {
-                                        [Op.between]: [caratValue - epsilon, caratValue + epsilon]
-                                    }
+                    }
+                    if (x["Diamond Carat"].trim() !== "" && x["Diamond Type"].trim() !== "" && x["Diamond Clarity"].trim() !== "") {
+                        const caratValue = parseFloat(x["Diamond Carat"].trim());
+                        const epsilon = 0.0001; // Small tolerance for floating-point comparison
+                        const DiamondMasterDetails = await DiamondMaster.findOne({
+                            where: {
+                                carat: {
+                                    [Op.between]: [caratValue - epsilon, caratValue + epsilon]
                                 }
-                            });
-                            const DiamondTypeDetails = await DiamondType.findOne({
-                                where: {
-                                    type_name: x["Diamond Type"].trim(),
-                                }
-                            });
-                            const DiamondClarityDetails = await DiamondClarity.findOne({
-                                where: {
-                                    clarity: x["Diamond Clarity"].trim(),
-                                }
-                            });
-                            if (DiamondMasterDetails && DiamondTypeDetails && DiamondClarityDetails) {
-                                const DiamondRateDetails = await DiamondRate.findOne({
-                                    where: {
-                                        diamond_master_id: DiamondMasterDetails.id,
-                                        diamond_type_id: DiamondTypeDetails.id,
-                                        clarity_id: DiamondClarityDetails.id,
-                                    }
-                                });
-                                if (DiamondRateDetails) {
-                                    designDiamondDetailsObj.diamond_rate_id = DiamondRateDetails.id;
-                                    // designDiamondDetailsObj.cut_master_id = diamondCut.id
-                                    designDiamondDetailsObj.pcs = x["Pcs"].trim();
-                                } else {
-                                    validationSting.push("Diamond rate not found");
-                                }
-                            } else {
-                                validationSting.push("Diamond master, type, or clarity not found");
                             }
-                        }
-                        if (x["Pcs"].trim() !== "") {
-                            designObj.pcs = x["Pcs"].trim();
-                        }
-                        if (x["Diamond Position"].trim() !== "") {
-                            if (x["Diamond Position"].trim() == "Center Diamond") {
-                                designObj.diamond_position = 1;
-                            } else {
-                                designObj.diamond_position = 0;
+                        });
+                        const DiamondTypeDetails = await DiamondType.findOne({
+                            where: {
+                                type_name: x["Diamond Type"].trim(),
                             }
+                        });
+                        const DiamondClarityDetails = await DiamondClarity.findOne({
+                            where: {
+                                clarity: x["Diamond Clarity"].trim(),
+                            }
+                        });
+                        if (DiamondMasterDetails && DiamondTypeDetails && DiamondClarityDetails) {
+                            const DiamondRateDetails = await DiamondRate.findOne({
+                                where: {
+                                    diamond_master_id: DiamondMasterDetails.id,
+                                    diamond_type_id: DiamondTypeDetails.id,
+                                    clarity_id: DiamondClarityDetails.id,
+                                }
+                            });
+                            if (DiamondRateDetails) {
+                                designDiamondDetailsObj.diamond_rate_id = DiamondRateDetails.id;
+                                // designDiamondDetailsObj.cut_master_id = diamondCut.id
+                                designDiamondDetailsObj.pcs = x["Pcs"].trim();
+                            } else {
+                                validationSting.push("Diamond rate not found");
+                            }
+                        } else {
+                            validationSting.push("Diamond master, type, or clarity not found");
                         }
-                        if (x["Position Visible"].trim() !== "") {
-                            designObj.position_visible = x["Position Visible"].trim();
+                    }
+                    if (x["Pcs"].trim() !== "") {
+                        designDiamondDetailsObj.pcs = x["Pcs"].trim();
+                    }
+                    if (x["Diamond Position"].trim() !== "") {
+                        if (x["Diamond Position"].trim() == "Center Diamond") {
+                            designDiamondDetailsObj.diamond_position = 1;
+                        } else {
+                            designDiamondDetailsObj.diamond_position = 0;
                         }
-                        if (x["Price flag"].trim() !== "") {
-                            designObj.price_flag = x["Price flag"].trim();
-                        }
-                        if (validationSting.length !== 0 || duplicationString.length !== 0) {
-                            x.success = "false";
-                            x.message =
-                                validationSting.length == 0
-                                    ? `DuplicationError:${duplicationString.toString()}`
-                                    : duplicationString.length == 0
-                                        ? `ValidationError:${validationSting.toString()}`
-                                        : `DuplicationError:${duplicationString.toString()} & ValidationError:${validationSting.toString()}`;
-                            finalList.push(x);
-                        }
-                        if (validationSting.length == 0 && duplicationString.length == 0) {
-                            x.success = "true";
-                            x.message = "verified";
-                            finalList.push(x);
+                    }
+                    if (x["Position Visible"].trim() !== "") {
+                        designDiamondDetailsObj.position_visible = x["Position Visible"].trim();
+                    }
+                    if (validationSting.length !== 0 || duplicationString.length !== 0) {
+                        x.success = "false";
+                        x.message =
+                            validationSting.length == 0
+                                ? `DuplicationError:${duplicationString.toString()}`
+                                : duplicationString.length == 0
+                                    ? `ValidationError:${validationSting.toString()}`
+                                    : `DuplicationError:${duplicationString.toString()} & ValidationError:${validationSting.toString()}`;
+                        finalList.push(x);
+                    }
+                    if (validationSting.length == 0 && duplicationString.length == 0) {
+                        x.success = "true";
+                        x.message = "verified";
+                        finalList.push(x);
 
-                            if (
-                                Object.keys(designObj).length !== 0 &&
-                                designObj.constructor === Object
-                            ) {
-                                designArray.push(designObj);
-                                // Store metal code and karat for SKU generation
-                                skuInfoArray.push({
-                                    metalCode: metalCode,
-                                    karatValue: karatValue
-                                });
-                            }
-                            // Push both English and Finnish translations
-                            if (
-                                Object.keys(designTranslationObjEN).length !== 0 &&
-                                designTranslationObjEN.constructor === Object
-                            ) {
-                                designTranslationArray.push(designTranslationObjEN);
-                            }
-                            if (
-                                Object.keys(designTranslationObjFN).length !== 0 &&
-                                designTranslationObjFN.constructor === Object
-                            ) {
-                                designTranslationArray.push(designTranslationObjFN);
-                            }
-                            // Store diamond details with design index for later insertion
-                            // Only insert if both cut_master_id and diamond_rate_id are present (both are required)
-                            if (
-                                Object.keys(designDiamondDetailsObj).length !== 0 &&
-                                designDiamondDetailsObj.constructor === Object &&
-                                designDiamondDetailsObj.cut_master_id &&
-                                designDiamondDetailsObj.diamond_rate_id
-                            ) {
-                                designDiamondDetailsArray.push({
-                                    ...designDiamondDetailsObj,
-                                    designIndex: designArray.length - 1, // Index in designArray
-                                    is_center: designObj.diamond_position === 1 ? 1 : 0
-                                });
-                            }
+                        if (
+                            Object.keys(designObj).length !== 0 &&
+                            designObj.product_id &&
+                            designObj.constructor === Object
+                        ) {
+                            designArray.push(designObj);
+                            // Store metal code and karat for SKU generation
+                            skuInfoArray.push({
+                                metalCode: metalCode,
+                                karatValue: karatValue
+                            });
+                        }
+                        // Push both English and Finnish translations
+                        if (
+                            Object.keys(designTranslationObjEN).length !== 0 &&
+                            designTranslationObjEN.constructor === Object
+                        ) {
+                            designTranslationArray.push(designTranslationObjEN);
+                        }
+                        if (
+                            Object.keys(designTranslationObjFN).length !== 0 &&
+                            designTranslationObjFN.constructor === Object
+                        ) {
+                            designTranslationArray.push(designTranslationObjFN);
+                        }
+                        // Store diamond details with design index for later insertion
+                        // Only insert if both cut_master_id and diamond_rate_id are present (both are required)
+                        if (
+                            Object.keys(designDiamondDetailsObj).length !== 0 &&
+                            designDiamondDetailsObj.constructor === Object &&
+                            designDiamondDetailsObj.cut_master_id &&
+                            designDiamondDetailsObj.diamond_rate_id
+                        ) {
+                            designDiamondDetailsArray.push({
+                                ...designDiamondDetailsObj,
+                                designIndex: designArray.length - 1, // Index in designArray
+                                is_center: designObj.diamond_position === 1 ? 1 : 0
+                            });
                         }
                     }
                 }
+                // return res.json({ designDiamondDetailsArray: designDiamondDetailsArray });
                 //if there is no error then data will ne inserted
                 const findingError = finalList.filter((x) => {
                     return x.success === "false";
@@ -4023,13 +4016,13 @@ const designController = () => {
                     const transaction = await sequelize.transaction();
                     try {
                         // Validate array lengths match (should be 2 translations per design)
-                        if (designArray.length * 2 !== designTranslationArray.length) {
-                            await transaction.rollback();
-                            return res.status(500).json({
-                                success: false,
-                                message: "Internal error: Design and translation arrays length mismatch. Expected 2 translations per design."
-                            });
-                        }
+                        // if (designArray.length * 2 !== designTranslationArray.length) {
+                        //     await transaction.rollback();
+                        //     return res.status(500).json({
+                        //         success: false,
+                        //         message: "Internal error: Design and translation arrays length mismatch. Expected 2 translations per design."
+                        //     });
+                        // }
 
                         // Count diamond details per design to set is_filter_available
                         const diamondDetailsCountMap = new Map();
