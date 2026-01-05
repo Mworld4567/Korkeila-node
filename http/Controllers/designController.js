@@ -3269,6 +3269,7 @@ const designController = () => {
                 const carat = req.query.carat || req.body.carat;
                 const cutId = req.query.cut_id || req.body.cut_id;
                 const lastChangedFilter = req.query.last_changed_filter || req.body.last_changed_filter; // Track which filter was changed last
+                const languageId = (req.query.language_id || req.body.language_id) ? parseInt(req.query.language_id || req.body.language_id) : null; // Language ID for translation filtering
 
                 if (!productId) {
                     return res.status(400).json({
@@ -3278,7 +3279,7 @@ const designController = () => {
                 }
 
                 // Helper function to build includes array
-                const buildIncludes = (useDiamondFilters, diamondRateFilter, useCutId) => {
+                const buildIncludes = (useDiamondFilters, diamondRateFilter, useCutId, useLanguageId) => {
                     const includes = [
                         {
                             model: MetalRateMaster,
@@ -3309,6 +3310,7 @@ const designController = () => {
                             model: DesignTranslation,
                             as: 'design_translations',
                             attributes: ['id', 'language_id', 'design_variant_name', 'description'],
+                            where: useLanguageId ? { language_id: useLanguageId } : undefined,
                             required: false,
                             include: [
                                 { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
@@ -3423,7 +3425,7 @@ const designController = () => {
                     }
 
                     // Build includes
-                    const includes = buildIncludes(hasDiamondFilters, diamondRateFilter, useCutId);
+                    const includes = buildIncludes(hasDiamondFilters, diamondRateFilter, useCutId, languageId);
 
                     // Find design
                     const designWhere = { product_id: parseInt(productId) };

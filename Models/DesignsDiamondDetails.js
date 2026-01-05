@@ -11,6 +11,7 @@ const DesignsDiamondDetails = sequelize.define(
         diamond_rate_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, },
         pcs: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
         is_center: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 0 },
+        position_visible: { type: Sequelize.TINYINT(4), allowNull: false, defaultValue: 1 },
     },
     {
         timestamps: false,
