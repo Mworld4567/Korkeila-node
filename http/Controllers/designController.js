@@ -999,6 +999,7 @@ const designController = () => {
                     diamond_rate_id: parseInt(detail.diamond_rate_id),
                     pcs: parseInt(detail.pcs) || 0,
                     is_center: detail.is_center || 0,
+                    position_visible: detail.position_visible || 0,
                 }));
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
@@ -1703,6 +1704,7 @@ const designController = () => {
                     diamond_rate_id: parseInt(detail.diamond_rate_id),
                     pcs: parseInt(detail.pcs) || 0,
                     is_center: detail.is_center || 0,
+                    position_visible: detail.position_visible || 0,
                 }));
 
                 await DesignsDiamondDetails.bulkCreate(diamondDetails, { transaction });
@@ -2064,6 +2066,7 @@ const designController = () => {
                         diamond_rate_name: detail.diamond_rate_name || "",
                         pcs: detail.pcs,
                         is_center: detail.is_center || 0,
+                        position_visible: detail.position_visible || 0,
                     })),
                     images: allImages,
                     translations: designTranslations.map(trans => ({
