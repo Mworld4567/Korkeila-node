@@ -632,6 +632,7 @@ const designController = () => {
                             diamondRate?.clarity?.clarity,
                         pcs: dd.pcs,
                         is_center: dd.is_center || 0,
+                        position_visible: dd.position_visible || 0,
                     };
                 });
 
