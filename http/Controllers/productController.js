@@ -805,15 +805,39 @@ const productController = () => {
                     }
                 }
 
-                // Find lowest priced design for each product
+                // Find lowest priced design for each product, prioritizing Yellow Gold when prices are equal
                 const lowestPriceByProduct = new Map();
+
+                // Helper function to check if a design is Yellow Gold
+                const isYellowGold = (design) => {
+                    const metal = design?.metal_rate?.metal;
+                    if (!metal) return false;
+                    return metal.metal_name === "Yellow Gold" ||
+                        metal.metal_code === "YG" ||
+                        metal.id === 1;
+                };
+
                 designsWithPrice.forEach(item => {
                     if (!lowestPriceByProduct.has(item.product_id)) {
                         lowestPriceByProduct.set(item.product_id, item);
                     } else {
                         const current = lowestPriceByProduct.get(item.product_id);
+
+                        // If new item has lower price, replace it
                         if (item.totalPrice < current.totalPrice) {
                             lowestPriceByProduct.set(item.product_id, item);
+                        }
+                        // If prices are equal, prioritize Yellow Gold
+                        else if (item.totalPrice === current.totalPrice) {
+                            const currentIsYellowGold = isYellowGold(current.design);
+                            const newIsYellowGold = isYellowGold(item.design);
+
+                            // If new item is Yellow Gold and current is not, replace it
+                            if (newIsYellowGold && !currentIsYellowGold) {
+                                lowestPriceByProduct.set(item.product_id, item);
+                            }
+                            // If current is not Yellow Gold and new is not either, keep current (first one)
+                            // If both are Yellow Gold, keep current (first one)
                         }
                     }
                 });
