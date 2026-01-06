@@ -26,7 +26,7 @@ const Language = require("../../Models/Language");
 const csvtojson = require("csvtojson");
 const fs = require("fs");
 const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
-const { priceFlag, filterAvailable, languageId } = require("../../config/globalVariable");
+const { priceFlag, filterAvailable, languageId, priceMessages } = require("../../config/globalVariable");
 const converter = require("json-2-csv");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
 
@@ -3714,9 +3714,12 @@ const designController = () => {
                 // Add total_price to design data
                 // If price_flag is 0, show appointment message instead of total price
                 if (designDataJson.price_flag === 0 || designDataJson.price_flag === priceFlag.NotSet) {
-                    designDataJson.total_price = `Starting from € ${Math.round(xyz)}, please book an appointment`;
+                    // designDataJson.total_price = `Starting from € ${Math.round(xyz)}, please book an appointment`;
+                    // Support for two languages: English (1) and Finnish (2)
+                    const currentLanguageId = languageId || 1; // Default to English (1) if not specified
+                    designDataJson.total_price = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
                 } else {
-                    designDataJson.total_price = "€ " + Math.round(xyz);
+                    designDataJson.total_price = priceMessages.currencySymbol + Math.round(xyz);
                 }
 
                 // Prepare response

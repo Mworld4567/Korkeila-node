@@ -29,9 +29,18 @@ const languageId = {
     Finnish: 2,
 };
 
+const priceMessages = {
+    enquirePrice: {
+        [languageId.English]: "Please enquire for price...",
+        [languageId.Finnish]: "Ole hyvä ja kysy hintaa...",
+    },
+    currencySymbol: "€ ",
+};
+
 module.exports = {
     globalAdminActions,
     priceFlag,
     filterAvailable,
     languageId,
+    priceMessages,
 };
