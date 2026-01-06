@@ -3283,7 +3283,7 @@ const designController = () => {
                 }
 
                 // Helper function to build includes array
-                const buildIncludes = (useDiamondFilters, diamondRateFilter, useCutId, useLanguageId) => {
+                const buildIncludes = (useDiamondFilters, diamondRateFilter, useCutId, useLanguageId, useDiamondTypeId, useClarityId, diamondRateIds) => {
                     const includes = [
                         {
                             model: MetalRateMaster,
@@ -3324,6 +3324,7 @@ const designController = () => {
 
                     // Add diamond details include conditionally
                     if (useDiamondFilters && diamondRateFilter && useCutId) {
+                        // If carat is provided, filter by specific diamond_rate_id
                         includes.push({
                             model: DesignsDiamondDetails,
                             as: 'diamond_details',
@@ -3333,6 +3334,49 @@ const designController = () => {
                             },
                             required: true,
                             // attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                            include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                    include: [
+                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                    ]
+                                }
+                            ]
+                        });
+                    } else if (useDiamondFilters && !diamondRateFilter && useCutId && diamondRateIds && diamondRateIds.length > 0) {
+                        // If diamond_type_id and clarity_id are provided but carat is not, filter by those only (with cut)
+                        includes.push({
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            where: {
+                                cut_master_id: useCutId,
+                                diamond_rate_id: { [Op.in]: diamondRateIds }
+                            },
+                            required: true,
+                            include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                    include: [
+                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                    ]
+                                }
+                            ]
+                        });
+                    } else if (useDiamondFilters && !diamondRateFilter && !useCutId && diamondRateIds && diamondRateIds.length > 0) {
+                        // If only diamond_type_id and clarity_id are provided (no carat, no cut)
+                        includes.push({
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            where: {
+                                diamond_rate_id: { [Op.in]: diamondRateIds }
+                            },
+                            required: true,
                             include: [
                                 { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
                                 {
@@ -3399,37 +3443,55 @@ const designController = () => {
                     }
 
                     // Find diamond rate if diamond filters are provided
+                    // Carat is now optional - only require diamond_type_id and clarity_id
                     let diamondRateFilter = null;
-                    const hasDiamondFilters = useDiamondTypeId && useClarityId && useCarat;
+                    let diamondRateIds = null;
+                    const hasDiamondFilters = useDiamondTypeId && useClarityId; // Carat is optional
 
                     if (hasDiamondFilters) {
-                        const caratValue = parseFloat(useCarat);
-                        const tolerance = 0.000001;
-                        const diamondMasterFilter = await DiamondMaster.findOne({
-                            where: {
-                                carat: {
-                                    [Op.between]: [caratValue - tolerance, caratValue + tolerance]
+                        // If carat is provided, find specific diamond rate
+                        if (useCarat) {
+                            const caratValue = parseFloat(useCarat);
+                            const tolerance = 0.000001;
+                            const diamondMasterFilter = await DiamondMaster.findOne({
+                                where: {
+                                    carat: {
+                                        [Op.between]: [caratValue - tolerance, caratValue + tolerance]
+                                    },
+                                    deleted_at: null
+                                }
+                            });
+                            if (!diamondMasterFilter) {
+                                return null;
+                            }
+                            diamondRateFilter = await DiamondRate.findOne({
+                                where: {
+                                    diamond_type_id: parseInt(useDiamondTypeId),
+                                    clarity_id: parseInt(useClarityId),
+                                    diamond_master_id: diamondMasterFilter.id
+                                }
+                            });
+                            if (!diamondRateFilter) {
+                                return null;
+                            }
+                        } else {
+                            // If carat is not provided, find all diamond rates matching diamond_type_id and clarity_id
+                            const matchingDiamondRates = await DiamondRate.findAll({
+                                where: {
+                                    diamond_type_id: parseInt(useDiamondTypeId),
+                                    clarity_id: parseInt(useClarityId)
                                 },
-                                deleted_at: null
+                                attributes: ['id']
+                            });
+                            diamondRateIds = matchingDiamondRates.map(dr => dr.id);
+
+                            if (diamondRateIds.length === 0) {
+                                return null; // No matching diamond rates found
                             }
-                        });
-                        if (!diamondMasterFilter) {
-                            return null;
-                        }
-                        diamondRateFilter = await DiamondRate.findOne({
-                            where: {
-                                diamond_type_id: parseInt(useDiamondTypeId),
-                                clarity_id: parseInt(useClarityId),
-                                diamond_master_id: diamondMasterFilter.id
-                            }
-                        });
-                        if (!diamondRateFilter) {
-                            return null;
                         }
                     }
-
                     // Build includes
-                    const includes = buildIncludes(hasDiamondFilters, diamondRateFilter, useCutId, languageId);
+                    const includes = buildIncludes(hasDiamondFilters, diamondRateFilter, useCutId, languageId, useDiamondTypeId, useClarityId, diamondRateIds);
 
                     // Find design
                     const designWhere = { product_id: parseInt(productId) };
@@ -3453,8 +3515,8 @@ const designController = () => {
                 // Track adjusted filters
                 let adjustedFilters = {};
 
-                // Check if original request had diamond filters
-                const originalHasDiamondFilters = diamondTypeId && clarityId && carat;
+                // Check if original request had diamond filters (carat is optional)
+                const originalHasDiamondFilters = diamondTypeId && clarityId;
 
                 // First, try exact match
                 let designData = await tryFindDesign({
@@ -3576,7 +3638,7 @@ const designController = () => {
 
                     // Get actual diamond filters from the design's diamond details
                     if (adjustedFilters.diamond_type_id === null || adjustedFilters.clarity_id === null ||
-                        adjustedFilters.carat === null || adjustedFilters.cut_id === null) {
+                        adjustedFilters.cut_id === null || (adjustedFilters.carat === null && carat)) {
                         if (designDataJson.diamond_details && designDataJson.diamond_details.length > 0) {
                             // Use the first diamond detail as the representative
                             const firstDiamondDetail = designDataJson.diamond_details[0];
@@ -3587,7 +3649,8 @@ const designController = () => {
                                 if (adjustedFilters.clarity_id === null) {
                                     adjustedFilters.clarity_id = firstDiamondDetail.diamond_rate.clarity_id;
                                 }
-                                if (adjustedFilters.carat === null && firstDiamondDetail.diamond_rate.diamond_master) {
+                                // Only set carat in adjusted filters if it was originally provided
+                                if (adjustedFilters.carat === null && carat && firstDiamondDetail.diamond_rate.diamond_master) {
                                     adjustedFilters.carat = firstDiamondDetail.diamond_rate.diamond_master.carat;
                                 }
                             }
