@@ -4245,14 +4245,46 @@ const designController = () => {
         },
         relatedProductDetailsForEcom: async (req, res) => {
             try {
+            // If product_id is provided, fetch its sub_category_id first
+            let targetSubCategoryId = null;
+            if (req.query.product_id !== undefined && req.query.product_id !== null && req.query.product_id !== '') {
+                const sourceProduct = await Product.findOne({
+                    where: { id: req.query.product_id },
+                    attributes: ['id', 'sub_category_id', 'category_id']
+                });
+
+                if (!sourceProduct) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Product list fetched successfully",
+                        data: [],
+                    });
+                }
+
+                // Use the source product's sub_category_id and category_id
+                targetSubCategoryId = sourceProduct.sub_category_id;
+                
+                // If sub_category_id is null, return empty array
+                if (targetSubCategoryId === null || targetSubCategoryId === undefined) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Product list fetched successfully",
+                        data: [],
+                    });
+                }
+            }
+
             // Build where clause conditionally
             const productWhere = {
                 is_display: 1,
                 category_id: req.query.category_id
             };
 
-            // Only add sub_category_id filter if it's provided
-            if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
+            // Filter by sub_category_id from the source product if product_id is provided
+            // Otherwise, use sub_category_id from query params if provided
+            if (targetSubCategoryId !== null) {
+                productWhere.sub_category_id = targetSubCategoryId;
+            } else if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
                 productWhere.sub_category_id = req.query.sub_category_id;
             }
 

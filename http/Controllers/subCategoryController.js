@@ -354,6 +354,7 @@ const subCategoryController = () => {
                     attributes: ['id', 'sub_category_name'],
                     where: {
                         category_id: req.query.category_id,
+                        deleted_at: null,
                     },
                 });
                 return res.status(200).json({
