@@ -4370,6 +4370,8 @@ const designController = () => {
                         model: MetalRateMaster,
                         as: 'metal_rate',
                         attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                        where: { metal_id: 1 },
+                        required: true,
                         include: [
                             { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
                             { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
