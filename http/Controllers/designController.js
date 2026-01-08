@@ -4261,9 +4261,9 @@ const designController = () => {
                 productWhere.style_id = req.query.style_id;
             }
 
-            // Include only products with the same product_id if provided in query params
+            // Exclude product_id if provided in query params (to get other products)
             if (req.query.product_id !== undefined && req.query.product_id !== null && req.query.product_id !== '') {
-                productWhere.id = req.query.product_id;
+                productWhere.id = { [Op.ne]: req.query.product_id };
             }
 
             // Fetch products first
@@ -4414,10 +4414,13 @@ const designController = () => {
                 }
             });
 
-            // Get product info (should be same for all designs since they're same product_id)
-            const productInfo = productData.length > 0 ? productData[0] : null;
+            // Create a map of product_id to product info
+            const productInfoMap = new Map();
+            productData.forEach(item => {
+                productInfoMap.set(item.product.id, item);
+            });
 
-            if (!productInfo) {
+            if (productInfoMap.size === 0) {
                 return res.status(200).json({
                     success: true,
                     message: "Product list fetched successfully",
@@ -4456,14 +4459,36 @@ const designController = () => {
 
                 designsWithPrice.push({
                     design: design,
-                    totalPrice: totalPrice
+                    totalPrice: totalPrice,
+                    product_id: design.product_id
                 });
             });
 
-            // Build response with design details
-            const dataWithUrls = designsWithPrice.map(item => {
+            // Group designs by product_id and find lowest price design for each product
+            const designsByProduct = new Map();
+            
+            designsWithPrice.forEach(item => {
+                const productId = item.product_id;
+                if (!designsByProduct.has(productId)) {
+                    designsByProduct.set(productId, item);
+                } else {
+                    // Compare and keep the one with lower price
+                    const existing = designsByProduct.get(productId);
+                    if (item.totalPrice < existing.totalPrice) {
+                        designsByProduct.set(productId, item);
+                    }
+                }
+            });
+
+            // Build response with design details - one design per product (lowest price)
+            const dataWithUrls = Array.from(designsByProduct.values()).map(item => {
                 // Convert design to JSON to add computed fields
                 const designData = item.design.toJSON ? item.design.toJSON() : item.design;
+                const productInfo = productInfoMap.get(item.product_id);
+
+                if (!productInfo) {
+                    return null;
+                }
 
                 // Construct full image URLs for all design images
                 if (designData.images && Array.isArray(designData.images)) {
@@ -4513,16 +4538,12 @@ const designController = () => {
                     design: designData,
                     total_price: designData.total_price
                 };
-            });
-
-            // Shuffle array randomly and take only 3 items
-            const shuffled = dataWithUrls.sort(() => Math.random() - 0.5);
-            const randomThree = shuffled.slice(0, 3);
+            }).filter(item => item !== null); // Filter out any null items
 
             return res.status(200).json({
                 success: true,
                 message: "Related product details fetched successfully",
-                data: randomThree,
+                data: dataWithUrls,
             });
          
             } catch (error) {
