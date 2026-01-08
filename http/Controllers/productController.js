@@ -20,7 +20,7 @@ const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 const Language = require("../../Models/Language");
-const { priceFlag, languageId } = require("../../config/globalVariable");
+const { priceFlag, languageId, priceMessages } = require("../../config/globalVariable");
 
 const productController = () => {
     return {
@@ -896,9 +896,13 @@ const productController = () => {
                     // Add total_price to design data
                     // If price_flag is 0, show appointment message instead of total price
                     if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
-                        designData.total_price = `Starting from € ${Math.round(lowestPriceDesign.totalPrice)}, please book an appointment`;
+                        // designData.total_price = `Please enquire for price...`;
+                        // Support for two languages: English (1) and Finnish (2)
+                        const currentLanguageId = languageId || 1; // Default to English (1) if not specified
+                        designData.total_price = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
+                        // designData.total_price = `Starting from € ${Math.round(lowestPriceDesign.totalPrice)}, please book an appointment`;
                     } else {
-                        designData.total_price = "€ " + Math.round(lowestPriceDesign.totalPrice);
+                        designData.total_price = priceMessages.currencySymbol + Math.round(lowestPriceDesign.totalPrice);
                     }
 
                     return {
