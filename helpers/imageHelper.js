@@ -21,7 +21,15 @@ const getTimezoneOffsetSeconds = () => {
 const appendTimezoneToFilename = (filename) => {
     if (!filename) return filename;
     
-    // If filename already has timezone appended (contains pattern like _19800 or _-19800), return as is
+    // Check if filename already has the unique format: timestamp_random_originalname_timezone.ext
+    // Pattern: starts with digits (timestamp), then _digits (random), then _something, then _digits.ext (timezone)
+    const uniqueFormatPattern = /^\d+_\d+_.+_[+-]?\d+\.(jpg|jpeg|png|gif|svg|webp|jfif|bmp|ico|tiff|tif)$/i;
+    if (filename.match(uniqueFormatPattern)) {
+        // Already has unique format with timezone, return as is
+        return filename;
+    }
+    
+    // Check if filename already has timezone appended (contains pattern like _19800 or _-19800), return as is
     // Pattern matches: _ followed by optional + or -, then digits, then dot and extension
     if (filename.match(/_[+-]?\d+\.(jpg|jpeg|png|gif|svg|webp|jfif|bmp|ico|tiff|tif)$/i)) {
         return filename;
