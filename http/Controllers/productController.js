@@ -1182,19 +1182,19 @@ const productController = () => {
                     const selectedVariants = selectedByProduct.get(productId) || [];
 
                     // If no design, keep 1 row with design null (same style as you had)
-                    if (!selectedVariants.length) {
-                        dataWithUrls.push({
-                            id: productId,
-                            product_name: item.product_name,
-                            image: constructImageUrl(item.product.image, 'product'),
-                            category_id: item.product.category_id,
-                            sub_category_id: item.product.sub_category_id,
-                            style_id: item.product.style_id,
-                            design: null,
-                            total_price: null
-                        });
-                        continue;
-                    }
+                    // if (!selectedVariants.length) {
+                    //     dataWithUrls.push({
+                    //         id: productId,
+                    //         product_name: item.product_name,
+                    //         image: constructImageUrl(item.product.image, 'product'),
+                    //         category_id: item.product.category_id,
+                    //         sub_category_id: item.product.sub_category_id,
+                    //         style_id: item.product.style_id,
+                    //         design: null,
+                    //         total_price: null
+                    //     });
+                    //     continue;
+                    // }
                     function getMainListingImage({ designImages, productImage, constructImageUrl }) {
                         const fallbackProductUrl = constructImageUrl(productImage, "product");
 
