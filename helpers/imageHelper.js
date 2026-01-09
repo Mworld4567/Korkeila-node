@@ -4,6 +4,43 @@
  */
 
 /**
+ * Get current timezone offset in seconds
+ * @returns {number} - Timezone offset in seconds (positive for UTC+, negative for UTC-)
+ */
+const getTimezoneOffsetSeconds = () => {
+    // getTimezoneOffset() returns offset in minutes, negative for UTC+
+    // We need to negate it and convert to seconds
+    return -new Date().getTimezoneOffset() * 60;
+};
+
+/**
+ * Append timezone offset in seconds to filename
+ * @param {string} filename - Original filename (e.g., "image.jpg")
+ * @returns {string} - Filename with timezone appended (e.g., "image_19800.jpg")
+ */
+const appendTimezoneToFilename = (filename) => {
+    if (!filename) return filename;
+    
+    // If filename already has timezone appended (contains pattern like _19800 or _-19800), return as is
+    // Pattern matches: _ followed by optional + or -, then digits, then dot and extension
+    if (filename.match(/_[+-]?\d+\.(jpg|jpeg|png|gif|svg|webp|jfif|bmp|ico|tiff|tif)$/i)) {
+        return filename;
+    }
+    
+    const timezoneOffset = getTimezoneOffsetSeconds();
+    const lastDotIndex = filename.lastIndexOf('.');
+    
+    if (lastDotIndex === -1) {
+        // No extension, just append timezone
+        return `${filename}_${timezoneOffset}`;
+    }
+    
+    const namePart = filename.substring(0, lastDotIndex);
+    const extension = filename.substring(lastDotIndex);
+    return `${namePart}_${timezoneOffset}${extension}`;
+};
+
+/**
  * Extract only the filename (last part) from URL or path
  * @param {string} imagePath - Full URL, path, or filename
  * @returns {string|null} - Extracted filename only (e.g., "image.jpg")
@@ -64,20 +101,25 @@ const constructImageUrl = (filename, routeName = null) => {
         return filename;
     }
 
+    // Append timezone offset to filename if not already present
+    const filenameWithTimezone = appendTimezoneToFilename(filename);
+
     const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
     
     // If routeName is provided, construct path: {routeName}/image/{filename}
     // Otherwise, assume filename might already contain path (for backward compatibility)
     if (routeName) {
-        return `${baseUrl}${routeName}/image/${filename}`;
+        return `${baseUrl}${routeName}/image/${filenameWithTimezone}`;
     }
     
     // For backward compatibility: if filename contains path, use it as is
     // Otherwise, just append filename (this handles old data that might have paths)
-    return `${baseUrl}${filename}`;
+    return `${baseUrl}${filenameWithTimezone}`;
 };
 
 module.exports = {
     extractFilename,
-    constructImageUrl
+    constructImageUrl,
+    appendTimezoneToFilename,
+    getTimezoneOffsetSeconds
 };
