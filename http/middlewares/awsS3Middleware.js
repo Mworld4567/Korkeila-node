@@ -5,6 +5,7 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 const multerS3 = require("multer-s3");
 const colors = require('colors');
+const { appendTimezoneToFilename } = require("../../helpers/imageHelper");
 const csvFilter = (req, file, cb) => {
   console.log(file.mimetype);
   if (
@@ -168,15 +169,20 @@ let uploadInS3FileVideo = multer({
       console.log(file, "awsS3Middleware");
     },
     key: (req, file, cb) => {
+      const filenameWithTimezone = appendTimezoneToFilename(file.originalname);
+      // Generate unique filename with timestamp and random number to ensure uniqueness
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       console.log(
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
       cb(
         null,
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
     },
@@ -195,15 +201,20 @@ let uploadSiteSettingInS3Image = multer({
       });
     },
     key: (req, file, cb) => {
+      const filenameWithTimezone = appendTimezoneToFilename(file.originalname);
+      // Generate unique filename with timestamp and random number to ensure uniqueness
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       console.log(
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
       cb(
         null,
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
     },
@@ -224,12 +235,18 @@ let uploadInS3Image = multer({
     key: (req, file, cb) => {
       // Handle undefined originalname
       const originalName = file.originalname || `file_${Date.now()}`;
+      // Append timezone offset to filename
+      const filenameWithTimezone = appendTimezoneToFilename(originalName);
+      // Generate unique filename with timestamp and random number to ensure uniqueness
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       // Handle undefined baseUrl segment
       const baseUrlParts = req.baseUrl ? req.baseUrl.split("/") : [];
       const routeName = baseUrlParts[2] || "testS3";
       
       // Store files in public/ subfolder: public/{routeName}/image/{filename}
-      const s3Key = `public/${routeName}/image/${originalName}`;
+      const s3Key = `public/${routeName}/image/${uniqueFileName}`;
       console.log("S3 Key:", s3Key);
       cb(null, s3Key);
     },
@@ -250,15 +267,20 @@ let uploadInS3ImageZip = multer({
       });
     },
     key: (req, file, cb) => {
+      const filenameWithTimezone = appendTimezoneToFilename(file.originalname);
+      // Generate unique filename with timestamp and random number to ensure uniqueness
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       console.log(
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
       cb(
         null,
         `${BUCKET_NAME}/${req.baseUrl.split("/")[2]}/image/${
-          file.originalname
+          uniqueFileName
         }`
       );
     },
@@ -298,7 +320,9 @@ let serverStorageimage = multer({
       const extension = parts[1].toLowerCase();
       const currentDate = new Date();
       const concatenatedNumber = `${currentDate.getDate().toString().padStart(2, '0')}${(currentDate.getMonth() + 1).toString().padStart(2, '0')}${currentDate.getFullYear()}${currentDate.getHours().toString().padStart(2, '0')}${currentDate.getMinutes().toString().padStart(2, '0')}${currentDate.getSeconds().toString().padStart(2, '0')}`;
-      const image_file_name = parts[0] + "." + extension;
+      let image_file_name = parts[0] + "." + extension;
+      // Append timezone offset to filename
+      image_file_name = appendTimezoneToFilename(image_file_name);
       console.log(colors.green("\n ImageNameInAWS=>") + colors.magenta(image_file_name), "\n")
       if (req.locals) {
         cb(null, req.locals.image_file);
@@ -357,7 +381,9 @@ let uploadInS3Document = multer({
       const modifiedName = namePart.replace(/\./g, "_") + "_" + timestamp + "." + extension1;
       const parts = modifiedName.split(".");
       const extension = parts[1].toLowerCase();
-      const image_file_name = parts[0] + "." + extension;
+      let image_file_name = parts[0] + "." + extension;
+      // Append timezone offset to filename
+      image_file_name = appendTimezoneToFilename(image_file_name);
       file.originalname = image_file_name;
       console.log(colors.green("\n ImageNameInAWS=>") + colors.magenta(image_file_name), "\n");
       cb(
@@ -439,20 +465,21 @@ let uploadReferenceImagesInS3 = multer({
       });
     },
     key: (req, file, cb) => {
+      const filenameWithTimezone = appendTimezoneToFilename(file.originalname);
+      // Generate unique filename with timestamp and random number to ensure uniqueness
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1e3);
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       console.log(
         `${BUCKET_NAME}/${
           req.baseUrl.split("/")[2]
-        }/image/${Date.now()}${Math.round(Math.random() * 1e3)}_${
-          file.originalname
-        }`
+        }/image/${uniqueFileName}`
       );
       cb(
         null,
         `${BUCKET_NAME}/${
           req.baseUrl.split("/")[2]
-        }/image/${Date.now()}${Math.round(Math.random() * 1e3)}_${
-          file.originalname
-        }`
+        }/image/${uniqueFileName}`
       );
     },
   }),
@@ -473,6 +500,8 @@ let uploadDesignFilesInS3 = multer({
     key: (req, file, cb) => {
       // Handle undefined originalname
       const originalName = file.originalname || `file_${Date.now()}`;
+      // Append timezone offset to filename
+      const filenameWithTimezone = appendTimezoneToFilename(originalName);
       // Handle undefined baseUrl segment
       const baseUrlParts = req.baseUrl ? req.baseUrl.split("/") : [];
       const routeName = baseUrlParts[2] || "design";
@@ -480,7 +509,7 @@ let uploadDesignFilesInS3 = multer({
       // Generate unique filename with timestamp
       const timestamp = Date.now();
       const random = Math.round(Math.random() * 1e3);
-      const uniqueFileName = `${timestamp}${random}_${originalName}`;
+      const uniqueFileName = `${timestamp}${random}_${filenameWithTimezone}`;
       
       // Store files in public/ subfolder: public/{routeName}/image/{filename}
       const s3Key = `public/${routeName}/image/${uniqueFileName}`;
