@@ -30,9 +30,13 @@ const languageId = {
 };
 
 const priceMessages = {
+    startingFrom: {
+        [languageId.English]: "Starting From",
+        [languageId.Finnish]: "Alkaen",
+    },
     enquirePrice: {
-        [languageId.English]: "Please enquire for price...",
-        [languageId.Finnish]: "Ole hyvä ja kysy hintaa...",
+        [languageId.English]: "Please enquire.",
+        [languageId.Finnish]: "pyydä lisätietoja",
     },
     currencySymbol: "€ ",
 };
