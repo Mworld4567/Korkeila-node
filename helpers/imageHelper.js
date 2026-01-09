@@ -91,7 +91,7 @@ const extractFilename = (imagePath) => {
 
 /**
  * Construct full URL from filename
- * @param {string} filename - Filename only (e.g., "image.jpg")
+ * @param {string} filename - Filename only (e.g., "image.jpg" or "timestamp_random_image_timezone.jpg")
  * @param {string} routeName - Optional route name (e.g., "cutMaster", "categoryMaster", "product")
  * @returns {string|null} - Full URL to the image
  */
@@ -109,20 +109,21 @@ const constructImageUrl = (filename, routeName = null) => {
         return filename;
     }
 
-    // Append timezone offset to filename if not already present
-    const filenameWithTimezone = appendTimezoneToFilename(filename);
+    // Use filename exactly as stored in database (database has what's in S3)
+    // Don't append timezone here - it's already in the filename if it was uploaded with timezone
+    // For old images without timezone, use them as-is
 
     const baseUrl = cloudfrontUrl.endsWith('/') ? cloudfrontUrl : `${cloudfrontUrl}/`;
     
     // If routeName is provided, construct path: {routeName}/image/{filename}
     // Otherwise, assume filename might already contain path (for backward compatibility)
     if (routeName) {
-        return `${baseUrl}${routeName}/image/${filenameWithTimezone}`;
+        return `${baseUrl}${routeName}/image/${filename}`;
     }
     
     // For backward compatibility: if filename contains path, use it as is
     // Otherwise, just append filename (this handles old data that might have paths)
-    return `${baseUrl}${filenameWithTimezone}`;
+    return `${baseUrl}${filename}`;
 };
 
 module.exports = {
