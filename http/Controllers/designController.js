@@ -3712,12 +3712,14 @@ const designController = () => {
                 }
 
                 // Add total_price to design data
-                // If price_flag is 0, show appointment message instead of total price
+                // If price_flag is 0, show "Starting From" message with price
                 if (designDataJson.price_flag === 0 || designDataJson.price_flag === priceFlag.NotSet) {
-                    // designDataJson.total_price = `Starting from € ${Math.round(xyz)}, please book an appointment`;
                     // Support for two languages: English (1) and Finnish (2)
-                    const currentLanguageId = languageId || 1; // Default to English (1) if not specified
-                    designDataJson.total_price = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
+                    const currentLanguageId = parseInt(req.query.language_id || req.body.language_id) || 1; // Default to English (1) if not specified
+                    const roundedPrice = Math.round(xyz);
+                    const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[1];
+                    const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
+                    designDataJson.total_price = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
                 } else {
                     designDataJson.total_price = priceMessages.currencySymbol + Math.round(xyz);
                 }
