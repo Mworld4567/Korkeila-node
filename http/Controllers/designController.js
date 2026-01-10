@@ -3314,7 +3314,7 @@ const designController = () => {
                             model: DesignTranslation,
                             as: 'design_translations',
                             attributes: ['id', 'language_id', 'design_variant_name', 'description'],
-                            where: useLanguageId ? { language_id: useLanguageId } : undefined,
+                            // where: useLanguageId ? { language_id: useLanguageId } : undefined,
                             required: false,
                             include: [
                                 { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
@@ -3700,16 +3700,16 @@ const designController = () => {
                 }
 
                 // Get first translation if available
-                if (designDataJson.design_translations && Array.isArray(designDataJson.design_translations)) {
-                    if (designDataJson.design_translations.length > 0) {
-                        designDataJson.design_translation = designDataJson.design_translations[0];
-                    } else {
-                        designDataJson.design_translation = null;
-                    }
-                    delete designDataJson.design_translations;
-                } else {
-                    designDataJson.design_translation = null;
-                }
+                // if (designDataJson.design_translations && Array.isArray(designDataJson.design_translations)) {
+                //     if (designDataJson.design_translations.length > 0) {
+                //         designDataJson.design_translation = designDataJson.design_translations[0];
+                //     } else {
+                //         designDataJson.design_translation = null;
+                //     }
+                //     delete designDataJson.design_translations;
+                // } else {
+                //     designDataJson.design_translation = null;
+                // }
 
                 // Add total_price to design data
                 // If price_flag is 0, show "Starting From" message with price
@@ -4428,7 +4428,7 @@ const designController = () => {
                         model: DesignTranslation,
                         as: 'design_translations',
                         attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
-                        where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                        // where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
                         required: false,
                         include: [
                             { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
