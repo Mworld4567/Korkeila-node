@@ -3823,29 +3823,41 @@ const designController = () => {
                 const csvString = await path.Body.transformToString("utf8");
                 await deleteFromBucket(s3Key);
 
-                const sources = await csvtojson().fromString(csvString);
+                // Configure csvtojson to preserve encoding and handle special characters properly (especially for Finnish)
+                const sources = await csvtojson({
+                    checkType: false, // Don't auto-convert types, preserve as strings
+                    encoding: 'utf8'
+                }).fromString(csvString);
                 // return res.json(sources);
-                if (
-                    !(
-                        Object.keys(sources[0])[0] == "Product Name" &&
-                        Object.keys(sources[0])[1] == "Design Variant Name(EN)" &&
-                        Object.keys(sources[0])[2] == "Design Variant Name(FN)" &&
-                        Object.keys(sources[0])[3] == "Description(EN)" &&
-                        Object.keys(sources[0])[4] == "Description(FN)" &&
-                        Object.keys(sources[0])[5] == "Metal name" &&
-                        Object.keys(sources[0])[6] == "Karat" &&
-                        Object.keys(sources[0])[7] == "Weight" &&
-                        Object.keys(sources[0])[8] == "Mark Up" &&
-                        Object.keys(sources[0])[9] == "Diamond Cut" &&
-                        Object.keys(sources[0])[10] == "Diamond Carat" &&
-                        Object.keys(sources[0])[11] == "Diamond Type" &&
-                        Object.keys(sources[0])[12] == "Diamond Clarity" &&
-                        Object.keys(sources[0])[13] == "Pcs" &&
-                        Object.keys(sources[0])[14] == "Diamond Position" &&
-                        Object.keys(sources[0])[15] == "Position Visible" &&
-                        Object.keys(sources[0])[16] == "Price flag"
-                    )
-                ) {
+                // Check for required columns - now includes P1 and P2 for both languages
+                const requiredColumns = [
+                    "Product Name",
+                    "Design Variant Name(EN)",
+                    "Design Variant Name(FN)",
+                    "Description(EN)-P1",
+                    "Description(EN)-P2",
+                    "Description(FN)-P1",
+                    "Description(FN)-P2",
+                    "Metal name",
+                    "Karat",
+                    "Weight",
+                    "Mark Up",
+                    "Diamond Cut",
+                    "Diamond Carat",
+                    "Diamond Type",
+                    "Diamond Clarity",
+                    "Pcs",
+                    "Diamond Position",
+                    "Position Visible",
+                    "Price flag"
+                ];
+
+                const sourceKeys = Object.keys(sources[0]);
+                const hasAllRequiredColumns = requiredColumns.every((col, index) => {
+                    return sourceKeys[index] === col;
+                });
+
+                if (!hasAllRequiredColumns) {
                     return res.status(422).json({
                         success: false,
                         message: "Invalid File Format"
@@ -3895,17 +3907,41 @@ const designController = () => {
                         designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
                         designTranslationObjEN.language_id = languageId.English;
                     } 
-                    if (x["Description(EN)"].trim() !== "") {
-                        designTranslationObjEN.description = x["Description(EN)"].trim();
-                    } 
+                    // Concatenate P1 and P2 with \r\n for English description
+                    let descriptionEN = [];
+                    if (x["Description(EN)-P1"] && typeof x["Description(EN)-P1"] === 'string' && x["Description(EN)-P1"].trim() !== "") {
+                        descriptionEN.push(x["Description(EN)-P1"].trim());
+                    }
+                    if (x["Description(EN)-P2"] && typeof x["Description(EN)-P2"] === 'string' && x["Description(EN)-P2"].trim() !== "") {
+                        descriptionEN.push(x["Description(EN)-P2"].trim());
+                    }
+                    if (descriptionEN.length > 0) {
+                        designTranslationObjEN.description = descriptionEN.join("\r\n");
+                    }
 
                     // Process Finnish translation
                     if (x["Design Variant Name(FN)"].trim() !== "") {
                         designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
                         designTranslationObjFN.language_id = languageId.Finnish;
                     } 
-                    if (x["Description(FN)"].trim() !== "") {
-                        designTranslationObjFN.description = x["Description(FN)"].trim();
+                    // Concatenate P1 and P2 with \r\n for Finnish description - preserve as it is in Excel
+                    let descriptionFN = [];
+                    // Preserve exact content from Excel with proper encoding for Finnish special characters (ä, ö, å)
+                    if (x["Description(FN)-P1"] !== undefined && x["Description(FN)-P1"] !== null && x["Description(FN)-P1"] !== "") {
+                        const p1Value = String(x["Description(FN)-P1"]).trim();
+                        if (p1Value !== "") {
+                            descriptionFN.push(p1Value);
+                        }
+                    }
+                    if (x["Description(FN)-P2"] !== undefined && x["Description(FN)-P2"] !== null && x["Description(FN)-P2"] !== "") {
+                        const p2Value = String(x["Description(FN)-P2"]).trim();
+                        if (p2Value !== "") {
+                            descriptionFN.push(p2Value);
+                        }
+                    }
+                    if (descriptionFN.length > 0) {
+                        // Join with \r\n to preserve paragraph separation exactly as it appears in Excel
+                        designTranslationObjFN.description = descriptionFN.join("\r\n");
                     } 
                     if (x["Metal name"].trim() !== "") {
                         const metal = await Metal.findOne({
@@ -4267,31 +4303,43 @@ const designController = () => {
                 const csvString = await path.Body.transformToString("utf8");
                 await deleteFromBucket(s3Key);
 
-                const sources = await csvtojson().fromString(csvString);
+                // Configure csvtojson to preserve encoding and handle special characters properly (especially for Finnish)
+                const sources = await csvtojson({
+                    checkType: false, // Don't auto-convert types, preserve as strings
+                    encoding: 'utf8'
+                }).fromString(csvString);
 
                 // Validate CSV format - SKU Number is the first column, then all other columns
-                if (
-                    !(
-                        Object.keys(sources[0])[0] == "SKU Number" &&
-                        Object.keys(sources[0])[1] == "Product Name" &&
-                        Object.keys(sources[0])[2] == "Design Variant Name(EN)" &&
-                        Object.keys(sources[0])[3] == "Design Variant Name(FN)" &&
-                        Object.keys(sources[0])[4] == "Description(EN)" &&
-                        Object.keys(sources[0])[5] == "Description(FN)" &&
-                        Object.keys(sources[0])[6] == "Metal name" &&
-                        Object.keys(sources[0])[7] == "Karat" &&
-                        Object.keys(sources[0])[8] == "Weight" &&
-                        Object.keys(sources[0])[9] == "Mark Up" &&
-                        Object.keys(sources[0])[10] == "Diamond Cut" &&
-                        Object.keys(sources[0])[11] == "Diamond Carat" &&
-                        Object.keys(sources[0])[12] == "Diamond Type" &&
-                        Object.keys(sources[0])[13] == "Diamond Clarity" &&
-                        Object.keys(sources[0])[14] == "Pcs" &&
-                        Object.keys(sources[0])[15] == "Diamond Position" &&
-                        Object.keys(sources[0])[16] == "Position Visible" &&
-                        Object.keys(sources[0])[17] == "Price flag"
-                    )
-                ) {
+                // Check for required columns - now includes P1 and P2 for both languages
+                const requiredColumns = [
+                    "SKU Number",
+                    "Product Name",
+                    "Design Variant Name(EN)",
+                    "Design Variant Name(FN)",
+                    "Description(EN)-P1",
+                    "Description(EN)-P2",
+                    "Description(FN)-P1",
+                    "Description(FN)-P2",
+                    "Metal name",
+                    "Karat",
+                    "Weight",
+                    "Mark Up",
+                    "Diamond Cut",
+                    "Diamond Carat",
+                    "Diamond Type",
+                    "Diamond Clarity",
+                    "Pcs",
+                    "Diamond Position",
+                    "Position Visible",
+                    "Price flag"
+                ];
+
+                const sourceKeys = Object.keys(sources[0]);
+                const hasAllRequiredColumns = requiredColumns.every((col, index) => {
+                    return sourceKeys[index] === col;
+                });
+
+                if (!hasAllRequiredColumns) {
                     return res.status(422).json({
                         success: false,
                         message: "Invalid File Format. First column must be 'SKU Number'"
@@ -4388,8 +4436,16 @@ const designController = () => {
                                 designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
                                 designTranslationObjEN.language_id = languageId.English;
                             }
-                            if (x["Description(EN)"] && x["Description(EN)"].trim() !== "") {
-                                designTranslationObjEN.description = x["Description(EN)"].trim();
+                            // Concatenate P1 and P2 with \r\n for English description
+                            let descriptionEN = [];
+                            if (x["Description(EN)-P1"] && typeof x["Description(EN)-P1"] === 'string' && x["Description(EN)-P1"].trim() !== "") {
+                                descriptionEN.push(x["Description(EN)-P1"].trim());
+                            }
+                            if (x["Description(EN)-P2"] && typeof x["Description(EN)-P2"] === 'string' && x["Description(EN)-P2"].trim() !== "") {
+                                descriptionEN.push(x["Description(EN)-P2"].trim());
+                            }
+                            if (descriptionEN.length > 0) {
+                                designTranslationObjEN.description = descriptionEN.join("\r\n");
                             }
 
                             // Process Finnish translation
@@ -4397,8 +4453,24 @@ const designController = () => {
                                 designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
                                 designTranslationObjFN.language_id = languageId.Finnish;
                             }
-                            if (x["Description(FN)"] && x["Description(FN)"].trim() !== "") {
-                                designTranslationObjFN.description = x["Description(FN)"].trim();
+                            // Concatenate P1 and P2 with \r\n for Finnish description - preserve as it is in Excel
+                            let descriptionFN = [];
+                            // Preserve exact content from Excel with proper encoding for Finnish special characters (ä, ö, å)
+                            if (x["Description(FN)-P1"] !== undefined && x["Description(FN)-P1"] !== null && x["Description(FN)-P1"] !== "") {
+                                const p1Value = String(x["Description(FN)-P1"]).trim();
+                                if (p1Value !== "") {
+                                    descriptionFN.push(p1Value);
+                                }
+                            }
+                            if (x["Description(FN)-P2"] !== undefined && x["Description(FN)-P2"] !== null && x["Description(FN)-P2"] !== "") {
+                                const p2Value = String(x["Description(FN)-P2"]).trim();
+                                if (p2Value !== "") {
+                                    descriptionFN.push(p2Value);
+                                }
+                            }
+                            if (descriptionFN.length > 0) {
+                                // Join with \r\n to preserve paragraph separation exactly as it appears in Excel
+                                designTranslationObjFN.description = descriptionFN.join("\r\n");
                             }
 
                             // Process Metal and Karat
