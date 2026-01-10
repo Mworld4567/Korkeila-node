@@ -4245,6 +4245,526 @@ const designController = () => {
                 });
             }
         },
+        updateCsv: async (req, res) => {
+            try {
+                if (!req.file) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please upload a CSV or Excel file (csv/xlsx/xls)",
+                    });
+                }
+
+                // Validate that file was properly uploaded
+                if (!req.file.key) {
+                    return res.status(500).json({
+                        success: false,
+                        message: "File upload failed: S3 key is missing",
+                    });
+                }
+
+                const s3Key = req.file.key;
+                const path = await getS3Object(s3Key);
+                const csvString = await path.Body.transformToString("utf8");
+                await deleteFromBucket(s3Key);
+
+                const sources = await csvtojson().fromString(csvString);
+
+                // Validate CSV format - SKU Number is the first column, then all other columns
+                if (
+                    !(
+                        Object.keys(sources[0])[0] == "SKU Number" &&
+                        Object.keys(sources[0])[1] == "Product Name" &&
+                        Object.keys(sources[0])[2] == "Design Variant Name(EN)" &&
+                        Object.keys(sources[0])[3] == "Design Variant Name(FN)" &&
+                        Object.keys(sources[0])[4] == "Description(EN)" &&
+                        Object.keys(sources[0])[5] == "Description(FN)" &&
+                        Object.keys(sources[0])[6] == "Metal name" &&
+                        Object.keys(sources[0])[7] == "Karat" &&
+                        Object.keys(sources[0])[8] == "Weight" &&
+                        Object.keys(sources[0])[9] == "Mark Up" &&
+                        Object.keys(sources[0])[10] == "Diamond Cut" &&
+                        Object.keys(sources[0])[11] == "Diamond Carat" &&
+                        Object.keys(sources[0])[12] == "Diamond Type" &&
+                        Object.keys(sources[0])[13] == "Diamond Clarity" &&
+                        Object.keys(sources[0])[14] == "Pcs" &&
+                        Object.keys(sources[0])[15] == "Diamond Position" &&
+                        Object.keys(sources[0])[16] == "Position Visible" &&
+                        Object.keys(sources[0])[17] == "Price flag"
+                    )
+                ) {
+                    return res.status(422).json({
+                        success: false,
+                        message: "Invalid File Format. First column must be 'SKU Number'"
+                    });
+                }
+
+                let finalList = [];
+                // Group rows by SKU Number (carry forward SKU from previous row if empty)
+                let currentSku = null;
+                let groupedBySku = new Map();
+
+                for (const x of sources) {
+                    // If SKU Number is provided, use it; otherwise use the last seen SKU
+                    if (x["SKU Number"] && x["SKU Number"].trim() !== "") {
+                        currentSku = x["SKU Number"].trim();
+                    }
+
+                    // Skip if no SKU has been set yet
+                    if (!currentSku) {
+                        x.success = "false";
+                        x.message = "ValidationError:SKU Number is required in the first row";
+                        finalList.push(x);
+                        continue;
+                    }
+
+                    // Group rows by SKU
+                    if (!groupedBySku.has(currentSku)) {
+                        groupedBySku.set(currentSku, []);
+                    }
+                    groupedBySku.get(currentSku).push(x);
+                }
+
+                // Process each SKU group
+                let updateOperations = [];
+
+                for (const [skuNumber, rows] of groupedBySku) {
+                    // Find existing design by SKU number
+                    const existingDesign = await Designs.findOne({
+                        where: {
+                            sku_number: skuNumber,
+                        }
+                    });
+
+                    if (!existingDesign) {
+                        // Mark all rows for this SKU as error
+                        for (const x of rows) {
+                            x.success = "false";
+                            x.message = "ValidationError:Design with SKU Number not found";
+                            finalList.push(x);
+                        }
+                        continue;
+                    }
+
+                    // Process all rows for this SKU
+                    let designObj = {};
+                    let designTranslationObjEN = {};
+                    let designTranslationObjFN = {};
+                    let diamondDetailsArray = [];
+                    let hasValidationError = false;
+
+                    for (const x of rows) {
+                        let validationSting = [];
+                        let duplicationString = [];
+
+                        // Use the first row's data for design-level updates (Product Name, Variant Name, Metal, etc.)
+                        // Only process these fields from the first row
+                        if (rows.indexOf(x) === 0) {
+                            // Process Product Name if provided
+                            if (x["Product Name"] && x["Product Name"].trim() !== "") {
+                                const product = await Product.findOne({
+                                    include: [
+                                        {
+                                            model: ProductTranslation,
+                                            as: 'product_translations',
+                                            where: {
+                                                language_id: languageId.English,
+                                                product_name: x["Product Name"].trim(),
+                                            }
+                                        }
+                                    ]
+                                });
+                                if (!product) {
+                                    validationSting.push("Product name not found");
+                                } else {
+                                    designObj.product_id = product.id;
+                                    designObj.category_id = product.category_id;
+                                    designObj.sub_category_id = product.sub_category_id;
+                                }
+                            }
+
+                            // Process English translation
+                            if (x["Design Variant Name(EN)"] && x["Design Variant Name(EN)"].trim() !== "") {
+                                designObj.design_variant_name = x["Design Variant Name(EN)"].trim();
+                                designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
+                                designTranslationObjEN.language_id = languageId.English;
+                            }
+                            if (x["Description(EN)"] && x["Description(EN)"].trim() !== "") {
+                                designTranslationObjEN.description = x["Description(EN)"].trim();
+                            }
+
+                            // Process Finnish translation
+                            if (x["Design Variant Name(FN)"] && x["Design Variant Name(FN)"].trim() !== "") {
+                                designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
+                                designTranslationObjFN.language_id = languageId.Finnish;
+                            }
+                            if (x["Description(FN)"] && x["Description(FN)"].trim() !== "") {
+                                designTranslationObjFN.description = x["Description(FN)"].trim();
+                            }
+
+                            // Process Metal and Karat
+                            if (x["Metal name"] && x["Metal name"].trim() !== "") {
+                                const metal = await Metal.findOne({
+                                    where: {
+                                        metal_name: x["Metal name"].trim(),
+                                    }
+                                });
+                                if (metal) {
+                                    if (x["Karat"] && x["Karat"].trim() !== "") {
+                                        const karat = await Karat.findOne({
+                                            where: {
+                                                karat: x["Karat"].trim(),
+                                            }
+                                        });
+                                        if (karat) {
+                                            const MetalRateId = await MetalRateMaster.findOne({
+                                                where: {
+                                                    karat_id: karat.id,
+                                                    metal_id: metal.id,
+                                                }
+                                            });
+                                            if (MetalRateId) {
+                                                designObj.metal_rate_id = MetalRateId.id;
+                                            } else {
+                                                validationSting.push("Metal rate not found");
+                                            }
+                                        } else {
+                                            validationSting.push("Karat not found");
+                                        }
+                                    } else {
+                                        validationSting.push("Karat is required when Metal name is provided");
+                                    }
+                                } else {
+                                    validationSting.push("Metal name not found");
+                                }
+                            }
+
+                            if (x["Weight"] && x["Weight"].trim() !== "") {
+                                designObj.metal_weight = x["Weight"].trim();
+                            }
+                            if (x["Mark Up"] && x["Mark Up"].trim() !== "") {
+                                designObj.mark_up = x["Mark Up"].trim();
+                            }
+                            if (x["Price flag"] && x["Price flag"].trim() !== "") {
+                                designObj.price_flag = x["Price flag"].trim();
+                            }
+                        }
+
+                        // Process Diamond details for each row (all rows can have diamond details)
+                        let designDiamondDetailsObj = {};
+
+                        if (x["Diamond Cut"] && x["Diamond Cut"].trim() !== "") {
+                            const diamondCut = await CutMaster.findOne({
+                                where: {
+                                    cut_name: x["Diamond Cut"].trim(),
+                                }
+                            });
+                            if (diamondCut) {
+                                designDiamondDetailsObj.cut_master_id = diamondCut.id;
+                            } else {
+                                validationSting.push("Diamond cut not found");
+                            }
+                        }
+
+                        if (x["Diamond Carat"] && x["Diamond Carat"].trim() !== "" &&
+                            x["Diamond Type"] && x["Diamond Type"].trim() !== "" &&
+                            x["Diamond Clarity"] && x["Diamond Clarity"].trim() !== "") {
+                            const caratValue = parseFloat(x["Diamond Carat"].trim());
+                            const epsilon = 0.0001;
+                            const DiamondMasterDetails = await DiamondMaster.findOne({
+                                where: {
+                                    carat: {
+                                        [Op.between]: [caratValue - epsilon, caratValue + epsilon]
+                                    }
+                                }
+                            });
+                            const DiamondTypeDetails = await DiamondType.findOne({
+                                where: {
+                                    type_name: x["Diamond Type"].trim(),
+                                }
+                            });
+                            const DiamondClarityDetails = await DiamondClarity.findOne({
+                                where: {
+                                    clarity: x["Diamond Clarity"].trim(),
+                                }
+                            });
+                            if (DiamondMasterDetails && DiamondTypeDetails && DiamondClarityDetails) {
+                                const DiamondRateDetails = await DiamondRate.findOne({
+                                    where: {
+                                        diamond_master_id: DiamondMasterDetails.id,
+                                        diamond_type_id: DiamondTypeDetails.id,
+                                        clarity_id: DiamondClarityDetails.id,
+                                    }
+                                });
+                                if (DiamondRateDetails) {
+                                    designDiamondDetailsObj.diamond_rate_id = DiamondRateDetails.id;
+                                    if (x["Pcs"] && x["Pcs"].trim() !== "") {
+                                        designDiamondDetailsObj.pcs = x["Pcs"].trim();
+                                    }
+                                } else {
+                                    validationSting.push("Diamond rate not found");
+                                }
+                            } else {
+                                validationSting.push("Diamond master, type, or clarity not found");
+                            }
+                        }
+
+                        if (x["Pcs"] && x["Pcs"].trim() !== "") {
+                            designDiamondDetailsObj.pcs = x["Pcs"].trim();
+                        }
+
+                        if (x["Diamond Position"] && x["Diamond Position"].trim() !== "") {
+                            if (x["Diamond Position"].trim() == "Center Diamond") {
+                                designDiamondDetailsObj.diamond_position = 1;
+                                designDiamondDetailsObj.is_center = 1;
+                            } else {
+                                designDiamondDetailsObj.diamond_position = 0;
+                                designDiamondDetailsObj.is_center = 0;
+                            }
+                        }
+
+                        if (x["Position Visible"] && x["Position Visible"].trim() !== "") {
+                            designDiamondDetailsObj.position_visible = x["Position Visible"].trim();
+                        }
+
+                        // Check for validation errors
+                        if (validationSting.length !== 0 || duplicationString.length !== 0) {
+                            x.success = "false";
+                            x.message =
+                                validationSting.length == 0
+                                    ? `DuplicationError:${duplicationString.toString()}`
+                                    : duplicationString.length == 0
+                                        ? `ValidationError:${validationSting.toString()}`
+                                        : `DuplicationError:${duplicationString.toString()} & ValidationError:${validationSting.toString()}`;
+                            finalList.push(x);
+                            hasValidationError = true;
+                        } else {
+                            x.success = "true";
+                            x.message = "verified";
+                            finalList.push(x);
+
+                            // Add diamond details if valid
+                            if (Object.keys(designDiamondDetailsObj).length > 0 &&
+                                designDiamondDetailsObj.cut_master_id &&
+                                designDiamondDetailsObj.diamond_rate_id) {
+                                diamondDetailsArray.push(designDiamondDetailsObj);
+                            }
+                        }
+                    }
+
+                    // If no validation errors for this SKU group, add to update operations
+                    if (!hasValidationError) {
+                        updateOperations.push({
+                            skuNumber: skuNumber,
+                            designId: existingDesign.id,
+                            existingDesign: existingDesign,
+                            designObj: designObj,
+                            designTranslationObjEN: designTranslationObjEN,
+                            designTranslationObjFN: designTranslationObjFN,
+                            diamondDetailsArray: diamondDetailsArray
+                        });
+                    }
+                }
+
+                // Check if there are any errors
+                const findingError = finalList.filter((x) => {
+                    return x.success === "false";
+                });
+
+                if (findingError.length === 0) {
+                    // Use transaction for atomic operations
+                    const transaction = await sequelize.transaction();
+                    try {
+                        const updatedDesigns = [];
+                        const updatedTranslations = [];
+                        const updatedDiamondDetails = [];
+
+                        for (const updateOp of updateOperations) {
+                            const { designId, designObj, existingDesign, diamondDetailsArray } = updateOp;
+
+                            // Only update fields that were provided (non-empty)
+                            const fieldsToUpdate = {};
+                            Object.keys(designObj).forEach(key => {
+                                if (designObj[key] !== undefined && designObj[key] !== null && designObj[key] !== '') {
+                                    fieldsToUpdate[key] = designObj[key];
+                                }
+                            });
+
+                            // Determine is_filter_available based on diamond details count
+                            if (diamondDetailsArray.length > 0) {
+                                // We're updating diamond details - set based on new count
+                                if (diamondDetailsArray.length === 0) {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.NoDiamond;
+                                } else if (diamondDetailsArray.length === 1) {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.SingleDiamond;
+                                } else {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond;
+                                }
+                            } else {
+                                // No diamond details being updated, check existing count to maintain current state
+                                const existingDiamondDetails = await DesignsDiamondDetails.findAll({
+                                    where: { design_id: designId },
+                                    transaction
+                                });
+                                if (existingDiamondDetails.length === 0) {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.NoDiamond;
+                                } else if (existingDiamondDetails.length === 1) {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.SingleDiamond;
+                                } else {
+                                    fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond;
+                                }
+                            }
+
+                            // Update design if there are fields to update
+                            if (Object.keys(fieldsToUpdate).length > 0) {
+                                await Designs.update(fieldsToUpdate, {
+                                    where: { id: designId },
+                                    transaction
+                                });
+                                const updatedDesign = await Designs.findByPk(designId, { transaction });
+                                updatedDesigns.push(updatedDesign);
+                            } else {
+                                updatedDesigns.push(existingDesign);
+                            }
+
+                            // Update or create English translation
+                            if (Object.keys(updateOp.designTranslationObjEN).length > 0) {
+                                const existingTranslationEN = await DesignTranslation.findOne({
+                                    where: {
+                                        design_id: designId,
+                                        language_id: languageId.English
+                                    },
+                                    transaction
+                                });
+
+                                if (existingTranslationEN) {
+                                    await DesignTranslation.update(updateOp.designTranslationObjEN, {
+                                        where: {
+                                            design_id: designId,
+                                            language_id: languageId.English
+                                        },
+                                        transaction
+                                    });
+                                    const updated = await DesignTranslation.findOne({
+                                        where: {
+                                            design_id: designId,
+                                            language_id: languageId.English
+                                        },
+                                        transaction
+                                    });
+                                    updatedTranslations.push(updated);
+                                } else {
+                                    updateOp.designTranslationObjEN.design_id = designId;
+                                    const created = await DesignTranslation.create(updateOp.designTranslationObjEN, { transaction });
+                                    updatedTranslations.push(created);
+                                }
+                            }
+
+                            // Update or create Finnish translation
+                            if (Object.keys(updateOp.designTranslationObjFN).length > 0) {
+                                const existingTranslationFN = await DesignTranslation.findOne({
+                                    where: {
+                                        design_id: designId,
+                                        language_id: languageId.Finnish
+                                    },
+                                    transaction
+                                });
+
+                                if (existingTranslationFN) {
+                                    await DesignTranslation.update(updateOp.designTranslationObjFN, {
+                                        where: {
+                                            design_id: designId,
+                                            language_id: languageId.Finnish
+                                        },
+                                        transaction
+                                    });
+                                    const updated = await DesignTranslation.findOne({
+                                        where: {
+                                            design_id: designId,
+                                            language_id: languageId.Finnish
+                                        },
+                                        transaction
+                                    });
+                                    updatedTranslations.push(updated);
+                                } else {
+                                    updateOp.designTranslationObjFN.design_id = designId;
+                                    const created = await DesignTranslation.create(updateOp.designTranslationObjFN, { transaction });
+                                    updatedTranslations.push(created);
+                                }
+                            }
+
+                            // Handle diamond details - delete existing and create new ones from array
+                            if (diamondDetailsArray.length > 0) {
+                                // Delete existing diamond details for this design
+                                await DesignsDiamondDetails.destroy({
+                                    where: { design_id: designId },
+                                    transaction
+                                });
+
+                                // Create all new diamond details
+                                const diamondDetailsToCreate = diamondDetailsArray.map(detail => ({
+                                    design_id: designId,
+                                    cut_master_id: detail.cut_master_id,
+                                    diamond_rate_id: detail.diamond_rate_id,
+                                    pcs: detail.pcs || 0,
+                                    is_center: detail.is_center !== undefined ? detail.is_center : 0,
+                                    position_visible: detail.position_visible !== undefined ? detail.position_visible : 1
+                                }));
+
+                                const createdDiamondDetails = await DesignsDiamondDetails.bulkCreate(diamondDetailsToCreate, { transaction });
+                                updatedDiamondDetails.push(...createdDiamondDetails);
+                            }
+                        }
+
+                        // Commit transaction
+                        await transaction.commit();
+
+                        return res.status(200).send({
+                            success: true,
+                            message: "CSV/Excel file uploaded and data updated successfully",
+                            data: {
+                                designArray: updatedDesigns.map(design => design.toJSON()),
+                                designTranslationArray: updatedTranslations.map(trans => trans.toJSON()),
+                                diamondDetailsArray: updatedDiamondDetails.map(detail => detail.toJSON()),
+                            },
+                        });
+                    } catch (updateError) {
+                        // Rollback transaction on error
+                        await transaction.rollback();
+                        throw updateError;
+                    }
+                } else {
+                    const csv = await converter.json2csvAsync(finalList);
+                    let writeNewCSV = {
+                        name: `${req.file.originalname}`,
+                        type: "text/csv",
+                        data: csv,
+                        path: ["design", "csv", `${req.file.originalname}`].join("/"),
+                    };
+                    // replace new file with error log
+                    await saveToBucket(writeNewCSV);
+
+                    // Generate presigned URL since public ACL is blocked by bucket settings
+                    const s3Key = `${process.env.AWS_BUCKET_NAME}/design/csv/${req.file.originalname}`;
+                    const url = await getPresignedUrl(s3Key, 3600 * 24 * 7); // 7 days expiry
+
+                    return res.status(200).send({
+                        success: false,
+                        csvError: 1,
+                        url,
+                        message:
+                            "Please solve error first then upload " + req.file.originalname,
+                    });
+                }
+            } catch (error) {
+                console.log("S3 CSV Update Error:", error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to update CSV/Excel file from S3",
+                    error: error.message,
+                });
+            }
+        },
         relatedProductDetailsForEcom: async (req, res) => {
             try {
             // If product_id is provided, fetch its sub_category_id first

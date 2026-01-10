@@ -19,7 +19,10 @@ Router.get("/related-variant-images", authMiddleware, designController().getRela
 Router.get("/variant-details-ecom", designController().variantDetailsForEcom);
 Router.get("/filter-dropdowns-ecom", designController().filterDropdownsEcom);
 Router.post("/upload-csv", authMiddleware, uploadInS3FileDownload.single('file'), designController().uploadCsv);
+Router.post("/update-csv", authMiddleware, uploadInS3FileDownload.single('file'), designController().updateCsv);
 Router.get("/related-product-details-ecom", designController().relatedProductDetailsForEcom);
+// Router.post("/update-csv-design", authMiddleware, uploadInS3FileDownload.single('file'), designController().updateVariantBySkuCsv);
+
 
 Router.get("/exportDesign", authMiddleware, designController().exportDesign);
 
