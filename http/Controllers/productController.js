@@ -1090,12 +1090,20 @@ const productController = () => {
         //             const dd = design?.diamond_details || [];
         //             if (!dd.length) return null;
 
-        //             const center = dd.find(x => x.is_center === 1 && x.cut_master_id);
-        //             if (center) return center.cut_master_id;
+        //             // 1) If center diamond exists, use that cut
+        //             const center = dd.find(x => Number(x.is_center) === 1 && x.cut_master_id);
+        //             if (center?.cut_master_id) return center.cut_master_id;
 
-        //             const first = dd.find(x => x.cut_master_id);
-        //             return first ? first.cut_master_id : null;
+        //             // 2) Otherwise use the lowest cut_master_id
+        //             const cutIds = dd
+        //                 .map(x => Number(x.cut_master_id))
+        //                 .filter(x => Number.isFinite(x) && x > 0);
+
+        //             if (!cutIds.length) return null;
+
+        //             return Math.min(...cutIds);
         //         };
+
 
         //         const getVariantKey = (design) => {
         //             const pid = design.product_id;
