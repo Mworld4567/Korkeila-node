@@ -4591,6 +4591,264 @@ const designController = () => {
                 });
             }
         },
+        exportDesign: async (req, res) => {
+            try {
+            
+                const designs = await Designs.findAll({
+                    include: [
+                        {
+                            model: Product,
+                            as: 'product',
+                            include: [
+                                {
+                                    model: ProductTranslation,
+                                    as: 'product_translations',
+                                    include: [
+                                        {
+                                            model: Language,
+                                            as: 'language',
+                                            attributes: ['id', 'language_code']
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            model: MetalRateMaster,
+                            as: 'metal_rate',
+                            include: [
+                                {
+                                    model: Metal,
+                                    as: 'metal',
+                                    attributes: ['id', 'metal_name']
+                                },
+                                {
+                                    model: Karat,
+                                    as: 'karat',
+                                    attributes: ['id', 'karat']
+                                }
+                            ]
+                        },
+                        {
+                            model: DesignTranslation,
+                            as: 'design_translations',
+                            include: [
+                                {
+                                    model: Language,
+                                    as: 'language',
+                                    attributes: ['id', 'language_code']
+                                }
+                            ]
+                        },
+                        {
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            include: [
+                                {
+                                    model: CutMaster,
+                                    as: 'cut_master',
+                                    attributes: ['id', 'cut_name']
+                                },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id'],
+                                    include: [
+                                        {
+                                            model: DiamondMaster,
+                                            as: 'diamond_master',
+                                            attributes: ['id', 'carat']
+                                        },
+                                        {
+                                            model: DiamondType,
+                                            as: 'diamond_type',
+                                            attributes: ['id', 'type_name']
+                                        },
+                                        {
+                                            model: DiamondClarity,
+                                            as: 'clarity',
+                                            attributes: ['id', 'clarity']
+                                        }
+                                    ]
+                                }
+                            ],
+                            order: [['id', 'ASC']]
+                        }
+                    ],
+                    order: [['id', 'DESC']]
+                });
+
+               
+                const designsByProduct = new Map();
+                
+                for (const design of designs) {
+                    const productId = design.product_id;
+                    if (!designsByProduct.has(productId)) {
+                        designsByProduct.set(productId, []);
+                    }
+                    designsByProduct.get(productId).push(design);
+                }
+
+                const exportData = [];
+                for (const [productId, productDesigns] of designsByProduct.entries()) {
+                    for (const design of productDesigns) {
+                        const productNameEN = design.product?.product_translations?.find(
+                            pt => pt.language_id === languageId.English
+                        )?.product_name || '';
+
+                        const translationEN = design.design_translations?.find(
+                            dt => dt.language_id === languageId.English
+                        );
+                        const translationFN = design.design_translations?.find(
+                            dt => dt.language_id === languageId.Finnish
+                        );
+
+                        const metalName = design.metal_rate?.metal?.metal_name || '';
+                        const karatValue = design.metal_rate?.karat?.karat || '';
+
+                        const diamondDetailsArray = [];
+                        if (design.diamond_details && design.diamond_details.length > 0) {
+                            for (const diamondDetail of design.diamond_details) {
+                                const cutName = diamondDetail.cut_master?.cut_name || '';
+                                const diamondCarat = diamondDetail.diamond_rate?.diamond_master?.carat?.toString() || '';
+                                const diamondType = diamondDetail.diamond_rate?.diamond_type?.type_name || '';
+                                const diamondClarity = diamondDetail.diamond_rate?.clarity?.clarity || '';
+                                const pcs = diamondDetail.pcs?.toString() || '';
+                                
+                                const diamondPosition = diamondDetail.is_center === 1 ? 'Center diamond' : 'other';
+                                
+                                const positionVisible = diamondDetail.position_visible?.toString() || '0';
+
+                                diamondDetailsArray.push({
+                                    'Diamond Cut': cutName,
+                                    'Diamond Carat': diamondCarat,
+                                    'Diamond Type': diamondType,
+                                    'Diamond Clarity': diamondClarity,
+                                    'Pcs': pcs,
+                                    'Diamond Position': diamondPosition,
+                                    'Position Visible': positionVisible
+                                });
+                            }
+                        }
+
+                        exportData.push({
+                            'Product Name': productNameEN,
+                            'Design Variant Name(EN)': translationEN?.design_variant_name || design.design_variant_name || '',
+                            'Design Variant Name(FN)': translationFN?.design_variant_name || '',
+                            'Description(EN)': translationEN?.description || '',
+                            'Description(FN)': translationFN?.description || '',
+                            'Metal name': metalName,
+                            'Karat': karatValue,
+                            'Weight': design.metal_weight?.toString() || '',
+                            'Mark Up': design.mark_up?.toString() || '',
+                            'Price flag': design.price_flag?.toString() || '0',
+                            'SKU Number': design.sku_number || '',
+                            'diamond_details': diamondDetailsArray
+                        });
+                    }
+                }
+
+                exportData.sort((a, b) => {
+                    const productNameA = a['Product Name'] || '';
+                    const productNameB = b['Product Name'] || '';
+                    return productNameA.localeCompare(productNameB);
+                });
+
+                const format = req.query.format || 'csv';
+                
+                if (format === 'json') {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Design variants exported successfully",
+                        data: exportData
+                    });
+                }
+
+                const csvData = [];
+                for (const designData of exportData) {
+                    const { diamond_details, ...baseData } = designData;
+                    
+                    if (diamond_details && diamond_details.length > 0) {
+                        for (let i = 0; i < diamond_details.length; i++) {
+                            const diamondDetail = diamond_details[i];
+                            const isFirstRow = i === 0;
+                            
+                            csvData.push({
+                                'Product Name': isFirstRow ? baseData['Product Name'] : '',
+                                'Design Variant Name(EN)': isFirstRow ? baseData['Design Variant Name(EN)'] : '',
+                                'Design Variant Name(FN)': isFirstRow ? baseData['Design Variant Name(FN)'] : '',
+                                'Description(EN)': isFirstRow ? baseData['Description(EN)'] : '',
+                                'Description(FN)': isFirstRow ? baseData['Description(FN)'] : '',
+                                'Metal name': isFirstRow ? baseData['Metal name'] : '',
+                                'Karat': isFirstRow ? baseData['Karat'] : '',
+                                'Weight': isFirstRow ? baseData['Weight'] : '',
+                                'Mark Up': isFirstRow ? baseData['Mark Up'] : '',
+                                'Diamond Cut': diamondDetail['Diamond Cut'],
+                                'Diamond Carat': diamondDetail['Diamond Carat'],
+                                'Diamond Type': diamondDetail['Diamond Type'],
+                                'Diamond Clarity': diamondDetail['Diamond Clarity'],
+                                'Pcs': diamondDetail['Pcs'],
+                                'Diamond Position': diamondDetail['Diamond Position'],
+                                'Position Visible': diamondDetail['Position Visible'],
+                                'Price flag': isFirstRow ? baseData['Price flag'] : '',
+                                'SKU Number': isFirstRow ? baseData['SKU Number'] : ''
+                            });
+                        }
+                    } else {
+                        csvData.push({
+                            'Product Name': baseData['Product Name'],
+                            'Design Variant Name(EN)': baseData['Design Variant Name(EN)'],
+                            'Design Variant Name(FN)': baseData['Design Variant Name(FN)'],
+                            'Description(EN)': baseData['Description(EN)'],
+                            'Description(FN)': baseData['Description(FN)'],
+                            'Metal name': baseData['Metal name'],
+                            'Karat': baseData['Karat'],
+                            'Weight': baseData['Weight'],
+                            'Mark Up': baseData['Mark Up'],
+                            'Diamond Cut': '',
+                            'Diamond Carat': '',
+                            'Diamond Type': '',
+                            'Diamond Clarity': '',
+                            'Pcs': '',
+                            'Diamond Position': '',
+                            'Position Visible': '',
+                            'Price flag': baseData['Price flag'],
+                            'SKU Number': baseData['SKU Number']
+                        });
+                    }
+                }
+
+                const csv = await converter.json2csvAsync(csvData);
+
+                const timestamp = new Date().toISOString().split('T')[0];
+                const filename = `designs_export_${timestamp}.csv`;
+
+                const csvFile = {
+                    name: filename,
+                    type: "text/csv",
+                    data: csv,
+                    path: ["design", "csv", filename].join("/"),
+                };
+
+                await saveToBucket(csvFile);
+
+                const s3Key = `${process.env.AWS_BUCKET_NAME}/design/csv/${filename}`;
+                const url = await getPresignedUrl(s3Key, 3600 * 24 * 7);
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Design variants exported successfully",
+                    csv_url: url,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
     };
 };
 module.exports = designController;

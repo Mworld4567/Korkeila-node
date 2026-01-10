@@ -21,5 +21,7 @@ Router.get("/filter-dropdowns-ecom", designController().filterDropdownsEcom);
 Router.post("/upload-csv", authMiddleware, uploadInS3FileDownload.single('file'), designController().uploadCsv);
 Router.get("/related-product-details-ecom", designController().relatedProductDetailsForEcom);
 
+Router.get("/exportDesign", authMiddleware, designController().exportDesign);
+
 module.exports = Router;
 
