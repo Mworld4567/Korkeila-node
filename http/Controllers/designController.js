@@ -3858,7 +3858,8 @@ const designController = () => {
                     "Pcs",
                     "Diamond Position",
                     "Position Visible",
-                    "Price flag"
+                    "Price flag",
+                    "Price"
                 ];
 
                 const sourceKeys = Object.keys(sources[0]);
@@ -3998,6 +3999,9 @@ const designController = () => {
                     }
                     if (x["Price flag"].trim() !== "") {
                         designObj.price_flag = x["Price flag"].trim();
+                    }
+                    if (x["Price"] && x["Price"].trim() !== "") {
+                        designObj.price = parseInt(x["Price"].trim()) || 0;
                     }
                     if (x["Diamond Cut"].trim() !== "") {
                         const diamondCut = await CutMaster.findOne({
@@ -4350,7 +4354,8 @@ const designController = () => {
                     "Pcs",
                     "Diamond Position",
                     "Position Visible",
-                    "Price flag"
+                    "Price flag",
+                    "Price"
                 ];
 
                 const sourceKeys = Object.keys(sources[0]);
@@ -4537,6 +4542,9 @@ const designController = () => {
                             }
                             if (x["Price flag"] && x["Price flag"].trim() !== "") {
                                 designObj.price_flag = x["Price flag"].trim();
+                            }
+                            if (x["Price"] && x["Price"].trim() !== "") {
+                                designObj.price = parseInt(x["Price"].trim()) || 0;
                             }
                         }
 
