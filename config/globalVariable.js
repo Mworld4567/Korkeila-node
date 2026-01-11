@@ -22,6 +22,7 @@ const filterAvailable = {
     NoDiamond: 0,
     SingleDiamond: 1,
     MultipleDiamond: 2,
+    CenterDiamondWithMultipleDiamond: 1,
 };
 
 const languageId = {

@@ -2880,6 +2880,9 @@ const designController = () => {
                         {
                             model: DesignsDiamondDetails,
                             as: 'diamond_details',
+                            where: {
+                                is_center: 1
+                            },
                             attributes: ['id', 'cut_master_id', 'diamond_rate_id'],
                             include: [
                                 {
@@ -4145,7 +4148,15 @@ const designController = () => {
                             } else if (diamondCount === 1) {
                                 designArray[i].is_filter_available = filterAvailable.SingleDiamond; // 1
                             } else {
-                                designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                // Check if any diamond has is_center = 1 for multiple diamonds
+                                const hasCenterDiamond = designDiamondDetailsArray.some(
+                                    (diamondDetail) => diamondDetail.designIndex === i && diamondDetail.is_center === 1
+                                );
+                                if (hasCenterDiamond) {
+                                    designArray[i].is_filter_available = filterAvailable.CenterDiamondWithMultipleDiamond; // 1
+                                } else {
+                                    designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                }
                             }
                         }
 
@@ -4671,7 +4682,15 @@ const designController = () => {
                                 } else if (diamondDetailsArray.length === 1) {
                                     fieldsToUpdate.is_filter_available = filterAvailable.SingleDiamond;
                                 } else {
-                                    fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond;
+                                    // Check if any diamond has is_center = 1 for multiple diamonds
+                                    const hasCenterDiamond = diamondDetailsArray.some(
+                                        (diamondDetail) => diamondDetail.is_center === 1
+                                    );
+                                    if (hasCenterDiamond) {
+                                        fieldsToUpdate.is_filter_available = filterAvailable.CenterDiamondWithMultipleDiamond; // 1
+                                    } else {
+                                        fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                    }
                                 }
                             } else {
                                 // No diamond details being updated, check existing count to maintain current state
@@ -4684,7 +4703,15 @@ const designController = () => {
                                 } else if (existingDiamondDetails.length === 1) {
                                     fieldsToUpdate.is_filter_available = filterAvailable.SingleDiamond;
                                 } else {
-                                    fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond;
+                                    // Check if any diamond has is_center = 1 for multiple diamonds
+                                    const hasCenterDiamond = existingDiamondDetails.some(
+                                        (diamondDetail) => diamondDetail.is_center === 1
+                                    );
+                                    if (hasCenterDiamond) {
+                                        fieldsToUpdate.is_filter_available = filterAvailable.CenterDiamondWithMultipleDiamond; // 1
+                                    } else {
+                                        fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                    }
                                 }
                             }
 
