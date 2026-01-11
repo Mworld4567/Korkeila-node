@@ -5179,28 +5179,13 @@ const designController = () => {
         },
         exportDesign: async (req, res) => {
             try {
-                // Parse productIDS from query (could be array or comma-separated string)
-                let productIDS = req.query.productIDS;
-                if (productIDS) {
-                    if (typeof productIDS === 'string') {
-                        productIDS = productIDS.split(',').map(id => id.trim()).filter(id => id);
-                    }
-                    // Ensure it's an array
-                    if (!Array.isArray(productIDS)) {
-                        productIDS = [productIDS];
-                    }
-                }
             
-                // Build where clause conditionally
-                const whereClause = {};
-                if (productIDS && productIDS.length > 0) {
-                    whereClause.product_id = {
-                        [Op.in]: productIDS
-                    };
-                }
+                const productIDS = req.query.productIDS;
             
                 const designs = await Designs.findAll({
-                    where: whereClause,
+                    where: {
+                        product_id: { [Op.in]: JSON.parse(productIDS) }
+                    },
                     include: [
                         {
                             model: Product,
