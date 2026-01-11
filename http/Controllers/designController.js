@@ -2880,9 +2880,9 @@ const designController = () => {
                         {
                             model: DesignsDiamondDetails,
                             as: 'diamond_details',
-                            where: {
-                                is_center: 1
-                            },
+                            // where: {
+                            //     is_center: 1
+                            // },
                             attributes: ['id', 'cut_master_id', 'diamond_rate_id'],
                             include: [
                                 {
