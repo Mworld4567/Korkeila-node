@@ -5285,7 +5285,7 @@ const designController = () => {
                 });
 
                 if (!designs || designs.length === 0) {
-                    return res.status(409).json({
+                    return res.status(204).json({
                         success: true,
                         message: "No designs found to export"
                     });
