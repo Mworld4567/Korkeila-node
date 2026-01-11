@@ -5022,6 +5022,7 @@ const designController = () => {
                         attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
                         // where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
                         required: false,
+                        separate: true,
                         include: [
                             { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
                         ]
@@ -5129,15 +5130,8 @@ const designController = () => {
                     }));
                 }
 
-                // If language_id is provided, return single translation object instead of array
-                if (req.query.language_id && designData.design_translations && Array.isArray(designData.design_translations)) {
-                    if (designData.design_translations.length > 0) {
-                        designData.design_translation = designData.design_translations[0];
-                    } else {
-                        designData.design_translation = null;
-                    }
-                    delete designData.design_translations;
-                }
+                // Keep design_translations as array (not converting to single object)
+                // design_translations will remain as an array of translation objects
 
                 // Get image where is_product_listing is 1, or use product image as fallback
                 let productImage = constructImageUrl(productInfo.product.image, 'product');
@@ -5185,8 +5179,28 @@ const designController = () => {
         },
         exportDesign: async (req, res) => {
             try {
+                // Parse productIDS from query (could be array or comma-separated string)
+                let productIDS = req.query.productIDS;
+                if (productIDS) {
+                    if (typeof productIDS === 'string') {
+                        productIDS = productIDS.split(',').map(id => id.trim()).filter(id => id);
+                    }
+                    // Ensure it's an array
+                    if (!Array.isArray(productIDS)) {
+                        productIDS = [productIDS];
+                    }
+                }
+            
+                // Build where clause conditionally
+                const whereClause = {};
+                if (productIDS && productIDS.length > 0) {
+                    whereClause.product_id = {
+                        [Op.in]: productIDS
+                    };
+                }
             
                 const designs = await Designs.findAll({
+                    where: whereClause,
                     include: [
                         {
                             model: Product,
@@ -5281,6 +5295,52 @@ const designController = () => {
                     designsByProduct.get(productId).push(design);
                 }
 
+                // Helper function to split description into two paragraphs
+                const splitDescription = (description) => {
+                    if (!description || typeof description !== 'string') {
+                        return { p1: '', p2: '' };
+                    }
+                    
+                    let trimmed = description.trim();
+                    if (!trimmed) {
+                        return { p1: '', p2: '' };
+                    }
+                    
+                    // Try splitting by double newlines first (standard paragraph separator)
+                    let paragraphs = trimmed.split(/\n\n+/);
+                    if (paragraphs.length >= 2) {
+                        return {
+                            p1: paragraphs[0].trim(),
+                            p2: paragraphs.slice(1).join('\n\n').trim()
+                        };
+                    }
+                    
+                    // Try splitting by single newline
+                    paragraphs = trimmed.split(/\n+/);
+                    if (paragraphs.length >= 2) {
+                        return {
+                            p1: paragraphs[0].trim(),
+                            p2: paragraphs.slice(1).join('\n').trim()
+                        };
+                    }
+                    
+                    // If single paragraph, try to split at first sentence boundary
+                    // Look for period followed by space (but not at the end)
+                    const sentenceMatch = trimmed.match(/^(.+?\.\s+)(.+)$/);
+                    if (sentenceMatch) {
+                        return {
+                            p1: sentenceMatch[1].trim(),
+                            p2: sentenceMatch[2].trim()
+                        };
+                    }
+                    
+                    // If can't be split meaningfully, put all in P1
+                    return {
+                        p1: trimmed,
+                        p2: ''
+                    };
+                };
+
                 const exportData = [];
                 for (const [productId, productDesigns] of designsByProduct.entries()) {
                     for (const design of productDesigns) {
@@ -5297,6 +5357,10 @@ const designController = () => {
 
                         const metalName = design.metal_rate?.metal?.metal_name || '';
                         const karatValue = design.metal_rate?.karat?.karat || '';
+
+                        // Split descriptions into two paragraphs
+                        const descriptionEN = splitDescription(translationEN?.description || '');
+                        const descriptionFN = splitDescription(translationFN?.description || '');
 
                         const diamondDetailsArray = [];
                         if (design.diamond_details && design.diamond_details.length > 0) {
@@ -5327,8 +5391,10 @@ const designController = () => {
                             'Product Name': productNameEN,
                             'Design Variant Name(EN)': translationEN?.design_variant_name || design.design_variant_name || '',
                             'Design Variant Name(FN)': translationFN?.design_variant_name || '',
-                            'Description(EN)': translationEN?.description || '',
-                            'Description(FN)': translationFN?.description || '',
+                            'Description(EN)-P1': descriptionEN.p1,
+                            'Description(EN)-P2': descriptionEN.p2,
+                            'Description(FN)-P1': descriptionFN.p1,
+                            'Description(FN)-P2': descriptionFN.p2,
                             'Metal name': metalName,
                             'Karat': karatValue,
                             'Weight': design.metal_weight?.toString() || '',
@@ -5366,11 +5432,14 @@ const designController = () => {
                             const isFirstRow = i === 0;
                             
                             csvData.push({
+                                'SKU Number': isFirstRow ? baseData['SKU Number'] : '',
                                 'Product Name': isFirstRow ? baseData['Product Name'] : '',
                                 'Design Variant Name(EN)': isFirstRow ? baseData['Design Variant Name(EN)'] : '',
                                 'Design Variant Name(FN)': isFirstRow ? baseData['Design Variant Name(FN)'] : '',
-                                'Description(EN)': isFirstRow ? baseData['Description(EN)'] : '',
-                                'Description(FN)': isFirstRow ? baseData['Description(FN)'] : '',
+                                'Description(EN)-P1': isFirstRow ? baseData['Description(EN)-P1'] : '',
+                                'Description(EN)-P2': isFirstRow ? baseData['Description(EN)-P2'] : '',
+                                'Description(FN)-P1': isFirstRow ? baseData['Description(FN)-P1'] : '',
+                                'Description(FN)-P2': isFirstRow ? baseData['Description(FN)-P2'] : '',
                                 'Metal name': isFirstRow ? baseData['Metal name'] : '',
                                 'Karat': isFirstRow ? baseData['Karat'] : '',
                                 'Weight': isFirstRow ? baseData['Weight'] : '',
@@ -5383,16 +5452,18 @@ const designController = () => {
                                 'Diamond Position': diamondDetail['Diamond Position'],
                                 'Position Visible': diamondDetail['Position Visible'],
                                 'Price flag': isFirstRow ? baseData['Price flag'] : '',
-                                'SKU Number': isFirstRow ? baseData['SKU Number'] : ''
                             });
                         }
                     } else {
                         csvData.push({
+                            'SKU Number': baseData['SKU Number'],
                             'Product Name': baseData['Product Name'],
                             'Design Variant Name(EN)': baseData['Design Variant Name(EN)'],
                             'Design Variant Name(FN)': baseData['Design Variant Name(FN)'],
-                            'Description(EN)': baseData['Description(EN)'],
-                            'Description(FN)': baseData['Description(FN)'],
+                            'Description(EN)-P1': baseData['Description(EN)-P1'],
+                            'Description(EN)-P2': baseData['Description(EN)-P2'],
+                            'Description(FN)-P1': baseData['Description(FN)-P1'],
+                            'Description(FN)-P2': baseData['Description(FN)-P2'],
                             'Metal name': baseData['Metal name'],
                             'Karat': baseData['Karat'],
                             'Weight': baseData['Weight'],
@@ -5405,7 +5476,6 @@ const designController = () => {
                             'Diamond Position': '',
                             'Position Visible': '',
                             'Price flag': baseData['Price flag'],
-                            'SKU Number': baseData['SKU Number']
                         });
                     }
                 }
