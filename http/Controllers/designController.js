@@ -3858,7 +3858,8 @@ const designController = () => {
                     "Pcs",
                     "Diamond Position",
                     "Position Visible",
-                    "Price flag"
+                    "Price flag",
+                    "Price"
                 ];
 
                 const sourceKeys = Object.keys(sources[0]);
@@ -3916,7 +3917,7 @@ const designController = () => {
                         designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
                         designTranslationObjEN.language_id = languageId.English;
                     } 
-                    // Concatenate P1 and P2 with \r\n for English description
+                    // Concatenate P1 and P2 with \n\n for English description
                     let descriptionEN = [];
                     if (x["Description(EN)-P1"] && typeof x["Description(EN)-P1"] === 'string' && x["Description(EN)-P1"].trim() !== "") {
                         descriptionEN.push(x["Description(EN)-P1"].trim());
@@ -3925,7 +3926,7 @@ const designController = () => {
                         descriptionEN.push(x["Description(EN)-P2"].trim());
                     }
                     if (descriptionEN.length > 0) {
-                        designTranslationObjEN.description = descriptionEN.join("\r\n");
+                        designTranslationObjEN.description = descriptionEN.join("\n\n");
                     }
 
                     // Process Finnish translation
@@ -3933,7 +3934,7 @@ const designController = () => {
                         designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
                         designTranslationObjFN.language_id = languageId.Finnish;
                     } 
-                    // Concatenate P1 and P2 with \r\n for Finnish description - preserve as it is in Excel
+                    // Concatenate P1 and P2 with \n\n for Finnish description
                     let descriptionFN = [];
                     // Preserve exact content from Excel with proper encoding for Finnish special characters (ä, ö, å)
                     if (x["Description(FN)-P1"] !== undefined && x["Description(FN)-P1"] !== null && x["Description(FN)-P1"] !== "") {
@@ -3949,8 +3950,8 @@ const designController = () => {
                         }
                     }
                     if (descriptionFN.length > 0) {
-                        // Join with \r\n to preserve paragraph separation exactly as it appears in Excel
-                        designTranslationObjFN.description = descriptionFN.join("\r\n");
+                        // Join with \n\n to create better paragraph separation
+                        designTranslationObjFN.description = descriptionFN.join("\n\n");
                     } 
                     if (x["Metal name"].trim() !== "") {
                         const metal = await Metal.findOne({
@@ -3998,6 +3999,9 @@ const designController = () => {
                     }
                     if (x["Price flag"].trim() !== "") {
                         designObj.price_flag = x["Price flag"].trim();
+                    }
+                    if (x["Price"] && x["Price"].trim() !== "") {
+                        designObj.price = parseInt(x["Price"].trim()) || 0;
                     }
                     if (x["Diamond Cut"].trim() !== "") {
                         const diamondCut = await CutMaster.findOne({
@@ -4350,7 +4354,8 @@ const designController = () => {
                     "Pcs",
                     "Diamond Position",
                     "Position Visible",
-                    "Price flag"
+                    "Price flag",
+                    "Price"
                 ];
 
                 const sourceKeys = Object.keys(sources[0]);
@@ -4455,7 +4460,7 @@ const designController = () => {
                                 designTranslationObjEN.design_variant_name = x["Design Variant Name(EN)"].trim();
                                 designTranslationObjEN.language_id = languageId.English;
                             }
-                            // Concatenate P1 and P2 with \r\n for English description
+                            // Concatenate P1 and P2 with \n\n for English description
                             let descriptionEN = [];
                             if (x["Description(EN)-P1"] && typeof x["Description(EN)-P1"] === 'string' && x["Description(EN)-P1"].trim() !== "") {
                                 descriptionEN.push(x["Description(EN)-P1"].trim());
@@ -4464,7 +4469,7 @@ const designController = () => {
                                 descriptionEN.push(x["Description(EN)-P2"].trim());
                             }
                             if (descriptionEN.length > 0) {
-                                designTranslationObjEN.description = descriptionEN.join("\r\n");
+                                designTranslationObjEN.description = descriptionEN.join("\n\n");
                             }
 
                             // Process Finnish translation
@@ -4472,7 +4477,7 @@ const designController = () => {
                                 designTranslationObjFN.design_variant_name = x["Design Variant Name(FN)"].trim();
                                 designTranslationObjFN.language_id = languageId.Finnish;
                             }
-                            // Concatenate P1 and P2 with \r\n for Finnish description - preserve as it is in Excel
+                            // Concatenate P1 and P2 with \n\n for Finnish description
                             let descriptionFN = [];
                             // Preserve exact content from Excel with proper encoding for Finnish special characters (ä, ö, å)
                             if (x["Description(FN)-P1"] !== undefined && x["Description(FN)-P1"] !== null && x["Description(FN)-P1"] !== "") {
@@ -4488,8 +4493,8 @@ const designController = () => {
                                 }
                             }
                             if (descriptionFN.length > 0) {
-                                // Join with \r\n to preserve paragraph separation exactly as it appears in Excel
-                                designTranslationObjFN.description = descriptionFN.join("\r\n");
+                                // Join with \n\n to create better paragraph separation
+                                designTranslationObjFN.description = descriptionFN.join("\n\n");
                             }
 
                             // Process Metal and Karat
@@ -4537,6 +4542,9 @@ const designController = () => {
                             }
                             if (x["Price flag"] && x["Price flag"].trim() !== "") {
                                 designObj.price_flag = x["Price flag"].trim();
+                            }
+                            if (x["Price"] && x["Price"].trim() !== "") {
+                                designObj.price = parseInt(x["Price"].trim()) || 0;
                             }
                         }
 
