@@ -649,8 +649,8 @@ const designController = () => {
                     diamond_design_detail: formattedDiamondDetails,
                     is_filter_available: design.is_filter_available,
                     price_flag: design.price_flag,
-                    price: design.price,
-                    pricing_message: design.pricing_message,
+                    // price: design.price,
+                    // pricing_message: design.pricing_message,
                     sku_number: design.sku_number,
                     images: imagesList.map(img => ({
                         id: img.id,
@@ -916,8 +916,8 @@ const designController = () => {
                     is_filter_available: req.body.diamond_design_detail.length == 0 ?
                         filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
                     price_flag: req.body.price_flag || priceFlag.NotSet,
-                    price: req.body.price || 0,
-                    pricing_message: req.body.pricing_message || null,
+                    // price: req.body.price || 0,
+                    // pricing_message: req.body.pricing_message || null,
                 };
 
                 // Check for duplicate design with same parameters
@@ -1556,8 +1556,8 @@ const designController = () => {
                     is_filter_available: req.body.diamond_design_detail.length == 0 ?
                         filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
                     price_flag: req.body.price_flag || priceFlag.NotSet,
-                    price: req.body.price || 0,
-                    pricing_message: req.body.pricing_message || null,
+                    // price: req.body.price || 0,
+                    // pricing_message: req.body.pricing_message || null,
                 };
 
                 // Check if incoming data is the same as current design (to avoid false duplicate detection)
