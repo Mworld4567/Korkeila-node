@@ -4045,10 +4045,12 @@ const designController = () => {
                         designDiamondDetailsObj.pcs = x["Pcs"].trim();
                     }
                     if (x["Diamond Position"].trim() !== "") {
-                        if (x["Diamond Position"].trim() == "Center Diamond") {
+                        if (x["Diamond Position"].trim().toLowerCase().includes("center")) {
                             designDiamondDetailsObj.diamond_position = 1;
+                            designDiamondDetailsObj.is_center = 1;
                         } else {
                             designDiamondDetailsObj.diamond_position = 0;
+                            designDiamondDetailsObj.is_center = 0;
                         }
                     }
                     if (x["Position Visible"].trim() !== "") {
@@ -4105,7 +4107,7 @@ const designController = () => {
                             designDiamondDetailsArray.push({
                                 ...designDiamondDetailsObj,
                                 designIndex: designArray.length - 1, // Index in designArray
-                                is_center: designObj.diamond_position === 1 ? 1 : 0
+                                // is_center: designObj.diamond_position === 1 ? 1 : 0
                             });
                         }
                     }
@@ -4585,7 +4587,7 @@ const designController = () => {
                         }
 
                         if (x["Diamond Position"] && x["Diamond Position"].trim() !== "") {
-                            if (x["Diamond Position"].trim() == "Center Diamond") {
+                            if (x["Diamond Position"].trim().toLowerCase().includes("center")) {
                                 designDiamondDetailsObj.diamond_position = 1;
                                 designDiamondDetailsObj.is_center = 1;
                             } else {
