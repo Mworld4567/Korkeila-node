@@ -5284,6 +5284,13 @@ const designController = () => {
                     order: [['id', 'DESC']]
                 });
 
+                if (!designs || designs.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "No designs found to export"
+                    });
+                }
+
                
                 const designsByProduct = new Map();
                 
