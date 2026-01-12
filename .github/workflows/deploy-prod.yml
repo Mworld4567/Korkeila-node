@@ -1,0 +1,33 @@
+name: Deploy PROD
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /var/www/html/api
+
+            git checkout .
+            git fetch origin
+            git checkout -B main origin/main
+            git clean -fd
+
+            aws s3 cp s3://production-system-files-storage/env/backend/.env .env
+
+            npx sequelize db:migrate
+
+            npm install --no-audit --no-fund
+
+            pm2 restart api-server || pm2 start npm --name api-server -- start --time
