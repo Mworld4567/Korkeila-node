@@ -598,7 +598,7 @@ const productController = () => {
                 });
             }
         },
-        productListEcom: async (req, res) => {
+        productListEcomOldVersion: async (req, res) => {
             try {
                 // Build where clause conditionally
                 const productWhere = {
@@ -978,368 +978,430 @@ const productController = () => {
                 });
             }
         },
-        // productListEcom: async (req, res) => {
-        //     try {
-        //         const productWhere = {
-        //             is_display: 1,
-        //             category_id: req.query.category_id
-        //         };
+        productListEcom: async (req, res) => {
+            try {
+                const productWhere = {
+                    is_display: 1,
+                    category_id: req.query.category_id
+                };
 
-        //         if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
-        //             productWhere.sub_category_id = req.query.sub_category_id;
-        //         }
+                if (req.query.sub_category_id !== undefined && req.query.sub_category_id !== null && req.query.sub_category_id !== '') {
+                    productWhere.sub_category_id = req.query.sub_category_id;
+                }
 
-        //         if (req.query.style_id !== undefined && req.query.style_id !== null && req.query.style_id !== '') {
-        //             productWhere.style_id = req.query.style_id;
-        //         }
+                if (req.query.style_id !== undefined && req.query.style_id !== null && req.query.style_id !== '') {
+                    productWhere.style_id = req.query.style_id;
+                }
 
-        //         const products = await Product.findAll({
-        //             where: productWhere,
-        //             attributes: ['id', 'image', "category_id", "sub_category_id", "style_id"]
-        //         });
+                const products = await Product.findAll({
+                    where: productWhere,
+                    attributes: ['id', 'image', "category_id", "sub_category_id", "style_id"]
+                });
 
-        //         const productIds = products.map(p => p.id);
+                const productIds = products.map(p => p.id);
 
-        //         if (productIds.length === 0) {
-        //             return res.status(200).json({
-        //                 success: true,
-        //                 message: "Product list fetched successfully",
-        //                 data: [],
-        //             });
-        //         }
+                if (productIds.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Product list fetched successfully",
+                        data: [],
+                    });
+                }
 
-        //         const translations = await ProductTranslation.findAll({
-        //             attributes: ['id', 'product_id', 'product_name'],
-        //             where: {
-        //                 product_id: { [Op.in]: productIds },
-        //                 language_id: req.query.language_id
-        //             }
-        //         });
+                const translations = await ProductTranslation.findAll({
+                    attributes: ['id', 'product_id', 'product_name'],
+                    where: {
+                        product_id: { [Op.in]: productIds },
+                        language_id: req.query.language_id
+                    }
+                });
 
-        //         const translationMap = new Map();
-        //         translations.forEach(t => translationMap.set(t.product_id, t));
+                const translationMap = new Map();
+                translations.forEach(t => translationMap.set(t.product_id, t));
 
-        //         const productData = products.map(product => {
-        //             const translation = translationMap.get(product.id);
-        //             return {
-        //                 product: product.toJSON ? product.toJSON() : product,
-        //                 product_name: translation ? translation.product_name : null,
-        //                 translation: translation ? (translation.toJSON ? translation.toJSON() : translation) : null
-        //             };
-        //         }).filter(item => item.product_name !== null);
+                const productData = products.map(product => {
+                    const translation = translationMap.get(product.id);
+                    return {
+                        product: product.toJSON ? product.toJSON() : product,
+                        product_name: translation ? translation.product_name : null,
+                        translation: translation ? (translation.toJSON ? translation.toJSON() : translation) : null
+                    };
+                }).filter(item => item.product_name !== null);
 
-        //         const filteredProductIds = productData.map(item => item.product.id);
+                const filteredProductIds = productData.map(item => item.product.id);
 
-        //         if (filteredProductIds.length === 0) {
-        //             return res.status(200).json({
-        //                 success: true,
-        //                 message: "Product list fetched successfully",
-        //                 data: [],
-        //             });
-        //         }
+                if (filteredProductIds.length === 0) {
+                    return res.status(200).json({
+                        success: true,
+                        message: "Product list fetched successfully",
+                        data: [],
+                    });
+                }
 
-        //         // --------------------------
-        //         // Fetch all designs (same as your current)
-        //         // --------------------------
-        //         const allDesigns = await Designs.findAll({
-        //             where: {
-        //                 product_id: { [Op.in]: filteredProductIds },
-        //                 price_flag: { [Op.ne]: 0 }
-        //             },
-        //             include: [
-        //                 {
-        //                     model: MetalRateMaster,
-        //                     as: 'metal_rate',
-        //                     attributes: ['id', 'metal_id', 'karat_id', 'rate'],
-        //                     include: [
-        //                         { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
-        //                         { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
-        //                     ]
-        //                 },
-        //                 {
-        //                     model: DesignsDiamondDetails,
-        //                     as: 'diamond_details',
-        //                     include: [
-        //                         { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
-        //                         {
-        //                             model: DiamondRate,
-        //                             as: 'diamond_rate',
-        //                             attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
-        //                             include: [
-        //                                 { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
-        //                             ]
-        //                         }
-        //                     ]
-        //                 },
-        //                 {
-        //                     model: DesignsImages,
-        //                     as: 'images',
-        //                     attributes: ['id', 'image_name', 'order', 'is_product_listing'],
-        //                     separate: true,
-        //                     order: [['order', 'ASC']]
-        //                 },
-        //                 {
-        //                     model: Product,
-        //                     as: 'product',
-        //                     include: [
-        //                         {
-        //                             model: Category,
-        //                             as: 'category',
-        //                             attributes: ['id', 'category_code', 'image'],
-        //                             include: [
-        //                                 {
-        //                                     model: CategoryTranslation,
-        //                                     as: 'category_translations',
-        //                                     attributes: ['id', 'category_name', 'language_id'],
-        //                                     where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
-        //                                     required: false
-        //                                 }
-        //                             ]
-        //                         },
-        //                         { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
-        //                         { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
-        //                     ]
-        //                 },
-        //                 {
-        //                     model: DesignTranslation,
-        //                     as: 'design_translations',
-        //                     attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
-        //                     // where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
-        //                     required: false,
-        //                     include: [
-        //                         { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
-        //                     ]
-        //                 }
-        //             ]
-        //         });
+                // --------------------------
+                // Fetch all designs (same as your current)
+                // --------------------------
+                const allDesigns = await Designs.findAll({
+                    where: {
+                        product_id: { [Op.in]: filteredProductIds },
+                        price_flag: { [Op.ne]: 0 }
+                    },
+                    include: [
+                        {
+                            model: MetalRateMaster,
+                            as: 'metal_rate',
+                            attributes: ['id', 'metal_id', 'karat_id', 'rate'],
+                            include: [
+                                { model: Karat, as: 'karat', attributes: ['id', 'karat'] },
+                                { model: Metal, as: 'metal', attributes: ['id', 'metal_name', 'metal_code'] }
+                            ]
+                        },
+                        {
+                            model: DesignsDiamondDetails,
+                            as: 'diamond_details',
+                            include: [
+                                { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                                {
+                                    model: DiamondRate,
+                                    as: 'diamond_rate',
+                                    attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                                    include: [
+                                        { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            model: DesignsImages,
+                            as: 'images',
+                            attributes: ['id', 'image_name', 'order', 'is_product_listing'],
+                            separate: true,
+                            order: [['order', 'ASC']]
+                        },
+                        {
+                            model: Product,
+                            as: 'product',
+                            include: [
+                                {
+                                    model: Category,
+                                    as: 'category',
+                                    attributes: ['id', 'category_code', 'image'],
+                                    include: [
+                                        {
+                                            model: CategoryTranslation,
+                                            as: 'category_translations',
+                                            attributes: ['id', 'category_name', 'language_id'],
+                                            where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                                            required: false
+                                        }
+                                    ]
+                                },
+                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
+                            ]
+                        },
+                        {
+                            model: DesignTranslation,
+                            as: 'design_translations',
+                            attributes: ['id', 'language_id', 'design_variant_name', 'description', 'note'],
+                            // where: req.query.language_id ? { language_id: req.query.language_id } : undefined,
+                            required: false,
+                            include: [
+                                { model: Language, as: 'language', attributes: ['id', 'language_name', 'language_code'] }
+                            ]
+                        }
+                    ]
+                });
 
-        //         // Flatten category_name (same as your current)
-        //         allDesigns.forEach(design => {
-        //             if (design.product && design.product.category && design.product.category.category_translations) {
-        //                 const translations = design.product.category.category_translations;
-        //                 if (translations && translations.length > 0) {
-        //                     design.product.category.category_name = translations[0].category_name;
-        //                 }
-        //                 delete design.product.category.category_translations;
-        //             }
-        //         });
+                // Flatten category_name (same as your current)
+                allDesigns.forEach(design => {
+                    if (design.product && design.product.category && design.product.category.category_translations) {
+                        const translations = design.product.category.category_translations;
+                        if (translations && translations.length > 0) {
+                            design.product.category.category_name = translations[0].category_name;
+                        }
+                        delete design.product.category.category_translations;
+                    }
+                });
 
-        //         // --------------------------
-        //         // Helpers for variant key
-        //         // --------------------------
-        //         const hasDiamonds = (design) =>
-        //             Array.isArray(design?.diamond_details) && design.diamond_details.length > 0;
+                // --------------------------
+                // Helpers for variant key
+                // --------------------------
+                const hasDiamonds = (design) =>
+                    Array.isArray(design?.diamond_details) && design.diamond_details.length > 0;
 
-        //         const getMetalId = (design) =>
-        //             design?.metal_rate?.metal_id ?? design?.metal_rate?.metal?.id ?? null;
+                const getMetalId = (design) =>
+                    design?.metal_rate?.metal_id ?? design?.metal_rate?.metal?.id ?? null;
 
-        //         const getPrimaryCutId = (design) => {
-        //             const dd = design?.diamond_details || [];
-        //             if (!dd.length) return null;
+                const getPrimaryCutId = (design) => {
+                    const dd = design?.diamond_details || [];
+                    if (!dd.length) return null;
 
-        //             // 1) If center diamond exists, use that cut
-        //             const center = dd.find(x => Number(x.is_center) === 1 && x.cut_master_id);
-        //             if (center?.cut_master_id) return center.cut_master_id;
+                    // 1) If center diamond exists, use that cut
+                    const center = dd.find(x => Number(x.is_center) === 1 && x.cut_master_id);
+                    if (center?.cut_master_id) return center.cut_master_id;
 
-        //             // 2) Otherwise use the lowest cut_master_id
-        //             const cutIds = dd
-        //                 .map(x => Number(x.cut_master_id))
-        //                 .filter(x => Number.isFinite(x) && x > 0);
+                    // 2) Otherwise use the lowest cut_master_id
+                    const cutIds = dd
+                        .map(x => Number(x.cut_master_id))
+                        .filter(x => Number.isFinite(x) && x > 0);
 
-        //             if (!cutIds.length) return null;
+                    if (!cutIds.length) return null;
 
-        //             return Math.min(...cutIds);
-        //         };
-
-
-        //         const getVariantKey = (design) => {
-        //             const pid = design.product_id;
-        //             const metalId = getMetalId(design);
-
-        //             // Plain => only metal color
-        //             if (!hasDiamonds(design)) {
-        //                 return `P_${pid}_${metalId}`;
-        //             }
-
-        //             // Diamond => metal color + primary cut
-        //             const cutId = getPrimaryCutId(design);
-        //             return `D_${pid}_${metalId}_${cutId}`;
-        //         };
-
-        //         // --------------------------
-        //         // Calculate price per design (same as your current)
-        //         // --------------------------
-        //         const designsWithPrice = [];
-
-        //         for (const design of allDesigns) {
-        //             const metalWeight = parseFloat(design.metal_weight) || 0;
-        //             const ratePerGram = parseFloat(design.metal_rate?.rate) || 0;
-        //             const metalCost = metalWeight * ratePerGram;
-
-        //             let diamondCost = 0;
-        //             if (hasDiamonds(design)) {
-        //                 design.diamond_details.forEach(diamondDetail => {
-        //                     const diamondPieces = parseInt(diamondDetail.pcs) || 0;
-        //                     const diamondSize = parseFloat(diamondDetail.diamond_rate?.diamond_master?.carat) || 0;
-        //                     const diamondRatePerCarat = parseFloat(diamondDetail.diamond_rate?.rate) || 0;
-        //                     diamondCost += diamondPieces * diamondSize * diamondRatePerCarat;
-        //                 });
-        //             }
-
-        //             const markUpValue = design.mark_up != null ? parseFloat(design.mark_up) : 1;
-        //             const markup = markUpValue > 0 ? markUpValue : 1;
-
-        //             const totalPriceNumber = (metalCost + diamondCost) * markup;
-
-        //             designsWithPrice.push({
-        //                 product_id: design.product_id,
-        //                 design_id: design.id,
-        //                 design,
-        //                 totalPriceNumber
-        //             });
-        //         }
-
-        //         // --------------------------
-        //         // Pick 1 design per variant key (lowest price)
-        //         // --------------------------
-        //         const bestByVariantKey = new Map();
-
-        //         designsWithPrice.forEach(item => {
-        //             const key = getVariantKey(item.design);
-
-        //             if (!bestByVariantKey.has(key)) {
-        //                 bestByVariantKey.set(key, item);
-        //                 return;
-        //             }
-
-        //             const current = bestByVariantKey.get(key);
-        //             if (item.totalPriceNumber < current.totalPriceNumber) {
-        //                 bestByVariantKey.set(key, item);
-        //             }
-        //         });
-
-        //         // Group selected variants back by product_id
-        //         const selectedByProduct = new Map();
-        //         for (const [, item] of bestByVariantKey.entries()) {
-        //             const pid = item.product_id;
-        //             if (!selectedByProduct.has(pid)) selectedByProduct.set(pid, []);
-        //             selectedByProduct.get(pid).push(item);
-        //         }
-
-        //         // --------------------------
-        //         // Build response (SAME FORMAT as before)
-        //         // -> duplicates product row per variant
-        //         // --------------------------
-        //         const dataWithUrls = [];
-
-        //         for (const item of productData) {
-        //             const productId = item.product.id;
-        //             const selectedVariants = selectedByProduct.get(productId) || [];
-
-        //             // If no design, keep 1 row with design null (same style as you had)
-        //             // if (!selectedVariants.length) {
-        //             //     dataWithUrls.push({
-        //             //         id: productId,
-        //             //         product_name: item.product_name,
-        //             //         image: constructImageUrl(item.product.image, 'product'),
-        //             //         category_id: item.product.category_id,
-        //             //         sub_category_id: item.product.sub_category_id,
-        //             //         style_id: item.product.style_id,
-        //             //         design: null,
-        //             //         total_price: null
-        //             //     });
-        //             //     continue;
-        //             // }
-        //             function getMainListingImage({ designImages, productImage, constructImageUrl }) {
-        //                 const fallbackProductUrl = constructImageUrl(productImage, "product");
-
-        //                 if (!Array.isArray(designImages) || designImages.length === 0) {
-        //                     return fallbackProductUrl;
-        //                 }
-
-        //                 // 1. is_product_listing = 1
-        //                 const listing = designImages.find(img => Number(img.is_product_listing) === 1);
-        //                 if (listing?.image_url) {
-        //                     return listing.image_url;
-        //                 }
-
-        //                 // 2. order = 3
-        //                 const orderThree = designImages.find(img => Number(img.order) === 3);
-        //                 if (orderThree?.image_url) {
-        //                     return orderThree.image_url;
-        //                 }
-
-        //                 // 3. first image
-        //                 if (designImages[0]?.image_url) {
-        //                     return designImages[0].image_url;
-        //                 }
-
-        //                 // 4. product image fallback
-        //                 return fallbackProductUrl;
-        //             }
+                    return Math.min(...cutIds);
+                };
 
 
-        //             // For each variant -> push one record (duplicate product info)
-        //             for (const v of selectedVariants) {
-        //                 const designData = v.design.toJSON ? v.design.toJSON() : v.design;
+                const getVariantKey = (design) => {
+                    const pid = design.product_id;
+                    const metalId = getMetalId(design);
 
-        //                 // Construct full image URLs for all design images
-        //                 // Construct full image URLs for all design images
-        //                 if (designData.images && Array.isArray(designData.images)) {
-        //                     designData.images = designData.images.map(img => ({
-        //                         id: img.id,
-        //                         image: img.image_name,
-        //                         image_url: constructImageUrl(img.image_name, 'design'),
-        //                         order: img.order,
-        //                         is_product_listing: img.is_product_listing,
-        //                     }));
-        //                 }
+                    // Plain => only metal color
+                    if (!hasDiamonds(design)) {
+                        return `P_${pid}_${metalId}`;
+                    }
 
-        //                 // ✅ Main object image as per rules
-        //                 const productImage = getMainListingImage({
-        //                     designImages: designData.images,
-        //                     productImage: item.product.image,
-        //                     constructImageUrl
-        //                 });
+                    // Diamond => metal color + primary cut
+                    const cutId = getPrimaryCutId(design);
+                    return `D_${pid}_${metalId}_${cutId}`;
+                };
 
-        //                 // total price field (same as your current)
-        //                 if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
-        //                     const currentLanguageId = languageId || 1;
-        //                     const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[1];
-        //                     const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
-        //                     designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${Math.round(v.totalPriceNumber)} ${enquirePriceText}`;
-        //                 } else {
-        //                     designData.total_price = priceMessages.currencySymbol + Math.round(v.totalPriceNumber);
-        //                 }
+                // --------------------------
+                // Calculate price per design (same as your current)
+                // --------------------------
+                const designsWithPrice = [];
 
-        //                 dataWithUrls.push({
-        //                     id: productId,
-        //                     product_name: item.product_name,
-        //                     image: productImage,
-        //                     category_id: item.product.category_id,
-        //                     sub_category_id: item.product.sub_category_id,
-        //                     style_id: item.product.style_id,
-        //                     design: designData,
-        //                     total_price: designData.total_price
-        //                 });
-        //             }
-        //         }
+                for (const design of allDesigns) {
+                    const metalWeight = parseFloat(design.metal_weight) || 0;
+                    const ratePerGram = parseFloat(design.metal_rate?.rate) || 0;
+                    const metalCost = metalWeight * ratePerGram;
 
-        //         return res.status(200).json({
-        //             success: true,
-        //             message: "Product list fetched successfully",
-        //             data: dataWithUrls,
-        //         });
+                    let diamondCost = 0;
+                    if (hasDiamonds(design)) {
+                        design.diamond_details.forEach(diamondDetail => {
+                            const diamondPieces = parseInt(diamondDetail.pcs) || 0;
+                            const diamondSize = parseFloat(diamondDetail.diamond_rate?.diamond_master?.carat) || 0;
+                            const diamondRatePerCarat = parseFloat(diamondDetail.diamond_rate?.rate) || 0;
+                            diamondCost += diamondPieces * diamondSize * diamondRatePerCarat;
+                        });
+                    }
 
-        //     } catch (error) {
-        //         console.log(error);
-        //         logError(error, req);
-        //         return res.status(500).json({
-        //             success: false,
-        //             message: "Internal server error",
-        //         });
-        //     }
-        // }
+                    const markUpValue = design.mark_up != null ? parseFloat(design.mark_up) : 1;
+                    const markup = markUpValue > 0 ? markUpValue : 1;
+
+                    // Total price calculation
+                    const calculatedPrice = (metalCost + diamondCost) * markup;
+
+                    // Determine the actual price to use for comparison based on price_flag
+                    // Parse price_flag to handle both string and number types
+                    const priceFlagValue = parseInt(design.price_flag) || 0;
+                    const designPrice = parseFloat(design.price) || 0;
+
+                    let priceForComparison = calculatedPrice; // Default to calculated price
+
+                    if (priceFlagValue === 2) {
+                        if (designPrice !== 0) {
+                            // For price_flag == 2 with price > 0, use database price for comparison
+                            priceForComparison = designPrice;
+                        }
+                        // For price_flag == 2 with price == 0, use calculated price (already set as default)
+                    } else if (priceFlagValue === 4 && designPrice === 0) {
+                        // For price_flag == 4 with price == 0, use a very high number so it's not selected as lowest
+                        priceForComparison = Infinity;
+                    }
+                    // For price_flag == 1 or 0, use calculated price (already set as default)
+
+                    designsWithPrice.push({
+                        product_id: design.product_id,
+                        design_id: design.id,
+                        design,
+                        totalPriceNumber: priceForComparison,
+                        calculatedPrice: calculatedPrice // Keep calculated price for display
+                    });
+                }
+
+                // --------------------------
+                // Pick 1 design per variant key (lowest price)
+                // --------------------------
+                const bestByVariantKey = new Map();
+
+                designsWithPrice.forEach(item => {
+                    const key = getVariantKey(item.design);
+
+                    if (!bestByVariantKey.has(key)) {
+                        bestByVariantKey.set(key, item);
+                        return;
+                    }
+
+                    const current = bestByVariantKey.get(key);
+                    if (item.totalPriceNumber < current.totalPriceNumber) {
+                        bestByVariantKey.set(key, item);
+                    } else if (item.totalPriceNumber === current.totalPriceNumber) {
+                        // If prices are equal, prioritize Yellow Gold
+                        const isYellowGold = (design) => {
+                            const metal = design?.metal_rate?.metal;
+                            if (!metal) return false;
+                            return metal.metal_name === "Yellow Gold" ||
+                                metal.metal_code === "YG" ||
+                                metal.id === 1;
+                        };
+                        const currentIsYellowGold = isYellowGold(current.design);
+                        const newIsYellowGold = isYellowGold(item.design);
+                        if (newIsYellowGold && !currentIsYellowGold) {
+                            bestByVariantKey.set(key, item);
+                        }
+                    }
+                });
+
+                // Group selected variants back by product_id
+                const selectedByProduct = new Map();
+                for (const [, item] of bestByVariantKey.entries()) {
+                    const pid = item.product_id;
+                    if (!selectedByProduct.has(pid)) selectedByProduct.set(pid, []);
+                    selectedByProduct.get(pid).push(item);
+                }
+
+                // --------------------------
+                // Build response (SAME FORMAT as before)
+                // -> duplicates product row per variant
+                // --------------------------
+                const dataWithUrls = [];
+
+                for (const item of productData) {
+                    const productId = item.product.id;
+                    const selectedVariants = selectedByProduct.get(productId) || [];
+
+                    // If no design, keep 1 row with design null (same style as you had)
+                    // if (!selectedVariants.length) {
+                    //     dataWithUrls.push({
+                    //         id: productId,
+                    //         product_name: item.product_name,
+                    //         image: constructImageUrl(item.product.image, 'product'),
+                    //         category_id: item.product.category_id,
+                    //         sub_category_id: item.product.sub_category_id,
+                    //         style_id: item.product.style_id,
+                    //         design: null,
+                    //         total_price: null
+                    //     });
+                    //     continue;
+                    // }
+                    function getMainListingImage({ designImages, productImage, constructImageUrl }) {
+                        const fallbackProductUrl = constructImageUrl(productImage, "product");
+
+                        if (!Array.isArray(designImages) || designImages.length === 0) {
+                            return fallbackProductUrl;
+                        }
+
+                        // 1. is_product_listing = 1
+                        const listing = designImages.find(img => Number(img.is_product_listing) === 1);
+                        if (listing?.image_url) {
+                            return listing.image_url;
+                        }
+
+                        // 2. order = 3
+                        const orderThree = designImages.find(img => Number(img.order) === 3);
+                        if (orderThree?.image_url) {
+                            return orderThree.image_url;
+                        }
+
+                        // 3. first image
+                        if (designImages[0]?.image_url) {
+                            return designImages[0].image_url;
+                        }
+
+                        // 4. product image fallback
+                        return fallbackProductUrl;
+                    }
+
+
+                    // For each variant -> push one record (duplicate product info)
+                    for (const v of selectedVariants) {
+                        const designData = v.design.toJSON ? v.design.toJSON() : v.design;
+
+                        // Construct full image URLs for all design images
+                        // Construct full image URLs for all design images
+                        if (designData.images && Array.isArray(designData.images)) {
+                            designData.images = designData.images.map(img => ({
+                                id: img.id,
+                                image: img.image_name,
+                                image_url: constructImageUrl(img.image_name, 'design'),
+                                order: img.order,
+                                is_product_listing: img.is_product_listing,
+                            }));
+                        }
+
+                        // ✅ Main object image as per rules
+                        const productImage = getMainListingImage({
+                            designImages: designData.images,
+                            productImage: item.product.image,
+                            constructImageUrl
+                        });
+
+                        // Add total_price to design data based on price_flag
+                        // Support for two languages: English (1) and Finnish (2)
+                        const currentLanguageId = parseInt(req.query.language_id) || languageId.English; // Default to English (1) if not specified
+                        const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[languageId.English];
+                        const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[languageId.English];
+
+                        // Use calculatedPrice for display when needed (price_flag == 1 or fallback)
+                        const calculatedPrice = v.calculatedPrice || v.totalPriceNumber;
+                        const calculatedRounded = Math.round(calculatedPrice);
+                        const dbPrice = Number(designData.price || 0);
+                        const dbPriceRounded = Math.round(dbPrice);
+
+                        // Parse price_flag to handle both string and number types
+                        const priceFlagValue = parseInt(designData.price_flag) || 0;
+
+                        // Initialize total_price - ensure it's always set fresh, never append
+                        let totalPriceValue = null;
+
+                        // Only ONE condition should execute per design
+                        if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
+                            // Condition 1: price_flag == 1: Show calculated price
+                            totalPriceValue = `${priceMessages.currencySymbol}${calculatedRounded}`;
+                        } else if (priceFlagValue === 2) {
+                            // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
+                            const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
+                            totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                        } else if (priceFlagValue === 4 && dbPrice === 0) {
+                            // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
+                            totalPriceValue = enquirePriceText;
+                        } else {
+                            // Fallback: Show calculated price (for price_flag == 0 or other values)
+                            totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                        }
+
+                        // Set total_price only once, ensuring no duplication
+                        designData.total_price = totalPriceValue;
+
+                        dataWithUrls.push({
+                            id: productId,
+                            product_name: item.product_name,
+                            image: productImage,
+                            category_id: item.product.category_id,
+                            sub_category_id: item.product.sub_category_id,
+                            style_id: item.product.style_id,
+                            design: designData,
+                            total_price: designData.total_price
+                        });
+                    }
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Product list fetched successfully",
+                    data: dataWithUrls,
+                });
+
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        }
     };
 };
 
