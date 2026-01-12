@@ -1154,16 +1154,15 @@ const productController = () => {
 
                 const getVariantKey = (design) => {
                     const pid = design.product_id;
-                    const metalId = getMetalId(design);
 
-                    // Plain => only metal color
+                    // Plain => group by product_id only (pick lowest price color)
                     if (!hasDiamonds(design)) {
-                        return `P_${pid}_${metalId}`;
+                        return `P_${pid}`;
                     }
 
-                    // Diamond => metal color + primary cut
+                    // Diamond => group by product_id + cut_id only (pick lowest price color for each cut)
                     const cutId = getPrimaryCutId(design);
-                    return `D_${pid}_${metalId}_${cutId}`;
+                    return `D_${pid}_${cutId}`;
                 };
 
                 // --------------------------
