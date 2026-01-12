@@ -420,7 +420,18 @@ const designController = () => {
                     const markup = markUpValue > 0 ? markUpValue : 1;
 
                     // Total price calculation
-                    const totalPrice = (metalCost + diamondCost) * markup;
+                    const calculatedPrice = (metalCost + diamondCost) * markup;
+
+                    // For admin side: Use database price for price_flag == 2 or 4, otherwise use calculated price
+                    // Parse price_flag to handle both string and number types
+                    const priceFlagValue = parseInt(design.price_flag) || 0;
+                    const designPrice = parseFloat(design.price) || 0;
+
+                    let displayPrice = calculatedPrice; // Default to calculated price
+                    if (priceFlagValue === 2 || priceFlagValue === 4) {
+                        // For price_flag == 2 or 4, use database price field (no formatted messages for admin)
+                        displayPrice = designPrice;
+                    }
 
                     // Get English design translation
                     const englishTranslation = designTranslationsMap.get(design.id);
@@ -450,8 +461,8 @@ const designController = () => {
                             is_product_listing: img.is_product_listing,
                         })),
                         image_count: image_count,
-                        total_price: "€ " + Math.round(totalPrice),
-                        _total_price_numeric: Math.round(totalPrice) // Store numeric value for filtering
+                        total_price: "€ " + Math.round(displayPrice),
+                        _total_price_numeric: Math.round(displayPrice) // Store numeric value for filtering
                     };
                 });
 
@@ -3725,18 +3736,39 @@ const designController = () => {
                 //     designDataJson.design_translation = null;
                 // }
 
-                // Add total_price to design data
-                // If price_flag is 0, show "Starting From" message with price
-                if (designDataJson.price_flag === 0 || designDataJson.price_flag === priceFlag.NotSet) {
-                    // Support for two languages: English (1) and Finnish (2)
-                    const currentLanguageId = parseInt(req.query.language_id || req.body.language_id) || 1; // Default to English (1) if not specified
-                    const roundedPrice = Math.round(xyz);
-                    const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[1];
-                    const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[1];
-                    designDataJson.total_price = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
+                // Add total_price to design data based on price_flag
+                // Support for two languages: English (1) and Finnish (2)
+                const currentLanguageId = parseInt(req.query.language_id || req.body.language_id) || languageId.English; // Default to English (1) if not specified
+                const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[languageId.English];
+                const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[languageId.English];
+
+                // Parse price_flag to handle both string and number types
+                const priceFlagValue = parseInt(designDataJson.price_flag) || 0;
+                const designPrice = parseFloat(designDataJson.price) || 0;
+
+                // Initialize total_price - ensure it's always set fresh, never append
+                let totalPriceValue = null;
+
+                // Only ONE condition should execute per design
+                // Use lowest price variant (xyz) for calculated price display
+                if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
+                    // Condition 1: price_flag == 1: Show calculated price (using lowest price variant)
+                    totalPriceValue = priceMessages.currencySymbol + Math.round(xyz);
+                } else if (priceFlagValue === 2) {
+                    // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
+                    const basePrice = designPrice > 0 ? Math.round(designPrice) : Math.round(xyz);
+                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                } else if (priceFlagValue === 4 && designPrice === 0) {
+                    // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
+                    totalPriceValue = enquirePriceText;
                 } else {
-                    designDataJson.total_price = priceMessages.currencySymbol + Math.round(xyz);
+                    // Fallback: Show calculated price (for price_flag == 0 or other values) using lowest price variant
+                    const roundedPrice = Math.round(xyz);
+                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
                 }
+
+                // Set total_price only once, ensuring no duplication
+                designDataJson.total_price = totalPriceValue;
 
                 // Prepare response
                 const response = {
@@ -5132,11 +5164,31 @@ const designController = () => {
                 const markup = markUpValue > 0 ? markUpValue : 1;
 
                 // Total price calculation
-                const totalPrice = (metalCost + diamondCost) * markup;
+                const calculatedPrice = (metalCost + diamondCost) * markup;
+
+                // Determine the actual price to use for comparison based on price_flag
+                // Parse price_flag to handle both string and number types
+                const priceFlagValue = parseInt(design.price_flag) || 0;
+                const designPrice = parseFloat(design.price) || 0;
+
+                let priceForComparison = calculatedPrice; // Default to calculated price
+
+                if (priceFlagValue === 2) {
+                    if (designPrice !== 0) {
+                        // For price_flag == 2 with price > 0, use database price for comparison
+                        priceForComparison = designPrice;
+                    }
+                    // For price_flag == 2 with price == 0, use calculated price (already set as default)
+                } else if (priceFlagValue === 4 && designPrice === 0) {
+                    // For price_flag == 4 with price == 0, use a very high number so it's not selected as lowest
+                    priceForComparison = Infinity;
+                }
+                // For price_flag == 1 or 0, use calculated price (already set as default)
 
                 designsWithPrice.push({
                     design: design,
-                    totalPrice: totalPrice,
+                    totalPrice: priceForComparison,
+                    calculatedPrice: calculatedPrice, // Keep calculated price for display
                     product_id: design.product_id
                 });
             });
@@ -5190,13 +5242,42 @@ const designController = () => {
                     }
                 }
 
-                // Add total_price to design data
-                // If price_flag is 0, show appointment message instead of total price
-                if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
-                    designData.total_price = `Starting from € ${Math.round(item.totalPrice)}, please book an appointment`;
+                // Add total_price to design data based on price_flag
+                // Support for two languages: English (1) and Finnish (2)
+                const currentLanguageId = parseInt(req.query.language_id) || languageId.English; // Default to English (1) if not specified
+                const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[languageId.English];
+                const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[languageId.English];
+
+                // Use calculatedPrice for display when needed (price_flag == 1 or fallback)
+                const calculatedPrice = item.calculatedPrice || item.totalPrice;
+                const calculatedRounded = Math.round(calculatedPrice);
+                const dbPrice = Number(designData.price || 0);
+                const dbPriceRounded = Math.round(dbPrice);
+
+                // Parse price_flag to handle both string and number types
+                const priceFlagValue = parseInt(designData.price_flag) || 0;
+
+                // Initialize total_price - ensure it's always set fresh, never append
+                let totalPriceValue = null;
+
+                // Only ONE condition should execute per design
+                if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
+                    // Condition 1: price_flag == 1: Show calculated price
+                    totalPriceValue = `${priceMessages.currencySymbol}${calculatedRounded}`;
+                } else if (priceFlagValue === 2) {
+                    // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
+                    const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
+                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                } else if (priceFlagValue === 4 && dbPrice === 0) {
+                    // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
+                    totalPriceValue = enquirePriceText;
                 } else {
-                    designData.total_price = "€ " + Math.round(item.totalPrice);
+                    // Fallback: Show calculated price (for price_flag == 0 or other values)
+                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
                 }
+
+                // Set total_price only once, ensuring no duplication
+                designData.total_price = totalPriceValue;
 
                 return {
                     id: productInfo.product.id,

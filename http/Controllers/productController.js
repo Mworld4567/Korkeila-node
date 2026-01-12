@@ -794,13 +794,33 @@ const productController = () => {
                         const markup = markUpValue > 0 ? markUpValue : 1;
 
                         // Total price calculation
-                        const xyz = (metalCost + diamondCost) * markup;
+                        const calculatedPrice = (metalCost + diamondCost) * markup;
+
+                        // Determine the actual price to use for comparison based on price_flag
+                        // Parse price_flag to handle both string and number types
+                        const priceFlagValue = parseInt(design.price_flag) || 0;
+                        const designPrice = parseFloat(design.price) || 0;
+
+                        let priceForComparison = calculatedPrice; // Default to calculated price
+
+                        if (priceFlagValue === 2) {
+                            if (designPrice !== 0) {
+                                // For price_flag == 2 with price > 0, use database price for comparison
+                                priceForComparison = designPrice;
+                            }
+                            // For price_flag == 2 with price == 0, use calculated price (already set as default)
+                        } else if (priceFlagValue === 4 && designPrice === 0) {
+                            // For price_flag == 4 with price == 0, use a very high number so it's not selected as lowest
+                            priceForComparison = Infinity;
+                        }
+                        // For price_flag == 1 or 0, use calculated price (already set as default)
 
                         designsWithPrice.push({
                             product_id: productId,
                             design_id: design.id,
                             design: design,
-                            totalPrice: xyz
+                            totalPrice: priceForComparison,
+                            calculatedPrice: calculatedPrice // Keep calculated price for display
                         });
                     }
                 }
@@ -893,17 +913,44 @@ const productController = () => {
                         }
                     }
 
-                    // Add total_price to design data
-                    // If price_flag is 0, show "Starting From" message with price
-                    if (designData.price_flag === 0 || designData.price_flag === priceFlag.NotSet) {
-                        // Support for two languages: English (1) and Finnish (2)
-                        const currentLanguageId = parseInt(req.query.language_id) || languageId.English; // Default to English (1) if not specified
-                        const roundedPrice = Math.round(lowestPriceDesign.totalPrice);
-                        const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[languageId.English];
-                        designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice}`;
-                    } else {
-                        designData.total_price = priceMessages.currencySymbol + Math.round(lowestPriceDesign.totalPrice);
+                    const currentLanguageId = parseInt(req.query.language_id) || languageId.English;
+                    const startingFromText =
+                        priceMessages.startingFrom[currentLanguageId] ||
+                        priceMessages.startingFrom[languageId.English];
+
+                    const enquireText =
+                        priceMessages.enquirePrice[currentLanguageId] ||
+                        priceMessages.enquirePrice[languageId.English];
+
+                    // Use calculatedPrice for display when needed (price_flag == 1 or fallback)
+                    const calculatedPrice = lowestPriceDesign.calculatedPrice || lowestPriceDesign.totalPrice;
+                    const calculatedRounded = Math.round(calculatedPrice);
+                    const dbPrice = Number(designData.price || 0);
+                    const dbPriceRounded = Math.round(dbPrice);
+
+                    // Parse price_flag to handle both string and number types
+                    const priceFlagValue = parseInt(designData.price_flag) || 0;
+
+                    // price_flag rules:
+                    // 0 => not in query, ignore
+                    // 1 => show calculated price
+                    // 2 => "Starting From {design.price}" + enquire (if design.price=0 then use calculated)
+                    // 4 => "Please enquire"
+                    if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
+                        designData.total_price = `${priceMessages.currencySymbol}${calculatedRounded}`;
                     }
+                    else if (priceFlagValue === 2) {
+                        const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
+                        designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquireText}`;
+                    }
+                    else if (priceFlagValue === 4 && dbPrice === 0) {
+                        designData.total_price = enquireText;
+                    }
+                    else {
+                        // fallback (for price_flag == 0 or other values)
+                        designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquireText}`;
+                    }
+
 
                     return {
                         id: productId,
