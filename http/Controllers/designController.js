@@ -4188,10 +4188,15 @@ const designController = () => {
                         });
 
                         // Set is_filter_available for each design
+                        const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
                         for (let i = 0; i < designArray.length; i++) {
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             if (designArray[i].product_id === 55) {
-                                designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                designArray[i].is_filter_available = filterAvailable.TheFlowerType; // 4
+                                continue;
+                            }
+                            else if (productIds70to81.includes(designArray[i].product_id)) {
+                                designArray[i].is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                                 continue;
                             }
 
@@ -4730,12 +4735,14 @@ const designController = () => {
                                     fieldsToUpdate[key] = designObj[key];
                                 }
                             });
-
+                            const productIds70to81 = Array.from({length: 12}, (_, i) => i + 70);
                             // Determine is_filter_available based on diamond details count
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             const productId = existingDesign.product_id || designObj.product_id;
                             if (productId === 55) {
-                                fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                fieldsToUpdate.is_filter_available = filterAvailable.TheFlowerType; // 4
+                            } else if (productIds70to81.includes(productId)) {
+                                fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                             } else if (diamondDetailsArray.length > 0) {
                                 // We're updating diamond details - set based on new count
                                 if (diamondDetailsArray.length === 0) {

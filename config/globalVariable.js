@@ -23,6 +23,8 @@ const filterAvailable = {
     SingleDiamond: 1,
     MultipleDiamond: 2,
     CenterDiamondWithMultipleDiamond: 1,
+    PendantsAndNecklacesAndBraceletsAndEarrings: 3,
+    TheFlowerType: 4,
 };
 
 const languageId = {
