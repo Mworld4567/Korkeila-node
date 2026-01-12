@@ -24,7 +24,7 @@ jobs:
             git checkout -B uat origin/uat
             git clean -fd
 
-            aws s3 cp s3://uat-system-files/env/backend/.env.prod.backend .env
+            aws s3 cp s3://uat-system-files/env/backend/.env.uat.backend .env
 
             npx sequelize db:migrate
 
