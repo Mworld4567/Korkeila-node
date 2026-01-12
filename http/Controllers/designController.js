@@ -2889,7 +2889,7 @@ const designController = () => {
                             // where: {
                             //     is_center: 1
                             // },
-                            attributes: ['id', 'cut_master_id', 'diamond_rate_id'],
+                            attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'position_visible'],
                             include: [
                                 {
                                     model: DiamondRate,
@@ -3008,7 +3008,11 @@ const designController = () => {
                     // Extract diamond-related dependent data from matching diamond_details only
                     if (shouldIncludeDesign && matchingDiamondDetails.length > 0) {
                         matchingDiamondDetails.forEach(detail => {
-                    // Extract diamond rate data (carats, clarities)
+                            // Only process diamonds with position_visible == 1 for carats
+                            const positionVisible = detail.position_visible;
+                            const isPositionVisible = positionVisible === 1 || positionVisible === '1' || parseInt(positionVisible) === 1;
+
+                            // Extract diamond rate data (carats, clarities)
                             if (detail.diamond_rate) {
                                 if (detail.diamond_rate.clarity_id) {
                                     clarityIds.add(detail.diamond_rate.clarity_id);
@@ -3016,7 +3020,8 @@ const designController = () => {
                                         clarityMap.set(detail.diamond_rate.clarity.id, detail.diamond_rate.clarity);
                                     }
                                 }
-                                if (detail.diamond_rate.diamond_master_id) {
+                                // Only add carat to diamondMasterIds if position_visible == 1
+                                if (isPositionVisible && detail.diamond_rate.diamond_master_id) {
                                     diamondMasterIds.add(detail.diamond_rate.diamond_master_id);
                                     if (detail.diamond_rate.diamond_master) {
                                         diamondMasterMap.set(detail.diamond_rate.diamond_master.id, detail.diamond_rate.diamond_master);
