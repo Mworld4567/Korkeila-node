@@ -1096,7 +1096,7 @@ const productController = () => {
                                         }
                                     ]
                                 },
-                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id'] },
+                                { model: SubCategory, as: 'subCategory', attributes: ['id', 'sub_category_name', 'sub_category_code', 'category_id', 'order_by'] },
                                 { model: StyleMaster, as: 'style', attributes: ['id', 'style_name', 'style_code', 'category_id', 'sub_category_id'] }
                             ]
                         },
@@ -1385,6 +1385,20 @@ const productController = () => {
                         });
                     }
                 }
+
+                // Sort by sub_category order_by in ascending order
+                dataWithUrls.sort((a, b) => {
+                    const orderA = a.design?.product?.subCategory?.order_by ?? null;
+                    const orderB = b.design?.product?.subCategory?.order_by ?? null;
+
+                    // Handle null values - put them at the end
+                    if (orderA === null && orderB === null) return 0;
+                    if (orderA === null) return 1;
+                    if (orderB === null) return -1;
+
+                    // Sort in ascending order
+                    return orderA - orderB;
+                });
 
                 return res.status(200).json({
                     success: true,
