@@ -9,6 +9,7 @@ const SubCategory = sequelize.define(
         sub_category_name: { type: Sequelize.STRING(255), allowNull: false },
         sub_category_code: { type: Sequelize.STRING(255), allowNull: false },
         category_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+        order_by: { type: Sequelize.INTEGER(11), allowNull: true, defaultValue: null },
         deleted_at: { type: Sequelize.DATE, allowNull: true },
     },
     {

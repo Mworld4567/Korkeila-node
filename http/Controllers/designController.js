@@ -4189,6 +4189,12 @@ const designController = () => {
 
                         // Set is_filter_available for each design
                         for (let i = 0; i < designArray.length; i++) {
+                            // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
+                            if (designArray[i].product_id === 55) {
+                                designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                continue;
+                            }
+
                             const diamondCount = diamondDetailsCountMap.get(i) || 0;
                             if (diamondCount === 0) {
                                 designArray[i].is_filter_available = filterAvailable.NoDiamond; // 0
@@ -4726,7 +4732,11 @@ const designController = () => {
                             });
 
                             // Determine is_filter_available based on diamond details count
-                            if (diamondDetailsArray.length > 0) {
+                            // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
+                            const productId = existingDesign.product_id || designObj.product_id;
+                            if (productId === 55) {
+                                fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond; // 2
+                            } else if (diamondDetailsArray.length > 0) {
                                 // We're updating diamond details - set based on new count
                                 if (diamondDetailsArray.length === 0) {
                                     fieldsToUpdate.is_filter_available = filterAvailable.NoDiamond;
