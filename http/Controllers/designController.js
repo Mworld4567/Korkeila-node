@@ -3148,23 +3148,45 @@ const designController = () => {
 
                 // Standard ring sizes (since there's no model for this)
                 const ringSizes = [
-                    { id: 1, size: "US 4", value: "4" },
-                    { id: 2, size: "US 4.5", value: "4.5" },
-                    { id: 3, size: "US 5", value: "5" },
-                    { id: 4, size: "US 5.5", value: "5.5" },
-                    { id: 5, size: "US 6", value: "6" },
-                    { id: 6, size: "US 6.5", value: "6.5" },
-                    { id: 7, size: "US 7", value: "7" },
-                    { id: 8, size: "US 7.5", value: "7.5" },
-                    { id: 9, size: "US 8", value: "8" },
-                    { id: 10, size: "US 8.5", value: "8.5" },
-                    { id: 11, size: "US 9", value: "9" },
-                    { id: 12, size: "US 9.5", value: "9.5" },
-                    { id: 13, size: "US 10", value: "10" },
-                    { id: 14, size: "US 10.5", value: "10.5" },
-                    { id: 15, size: "US 11", value: "11" },
-                    { id: 16, size: "US 11.5", value: "11.5" },
-                    { id: 17, size: "US 12", value: "12" }
+                    { id: 1, size: "14", value: "14" },
+                    { id: 2, size: "14.25", value: "14.25" },
+                    { id: 3, size: "14.5", value: "14.5" },
+                    { id: 4, size: "14.75", value: "14.75" },
+                    { id: 5, size: "15", value: "15" },
+                    { id: 6, size: "15.25", value: "15.25" },
+                    { id: 7, size: "15.5", value: "15.5" },
+                    { id: 8, size: "15.75", value: "15.75" },
+                    { id: 9, size: "16", value: "16" },
+                    { id: 10, size: "16.5", value: "16.5" },
+                    { id: 11, size: "17", value: "17" },
+                    { id: 12, size: "17.25", value: "17.25" },
+                    { id: 13, size: "17.5", value: "17.5" },
+                    { id: 14, size: "17.75", value: "17.75" },
+                    { id: 15, size: "18", value: "18" },
+                    { id: 16, size: "18.25", value: "18.25" },
+                    { id: 17, size: "18.5", value: "18.5" },
+                    { id: 18, size: "18.75", value: "18.75" },
+                    { id: 19, size: "19", value: "19" },
+                    { id: 20, size: "19.25", value: "19.25" },
+                    { id: 21, size: "19.5", value: "19.5" },
+                    { id: 22, size: "19.75", value: "19.75" },
+                    { id: 23, size: "20", value: "20" },
+                    { id: 24, size: "20.25", value: "20.25" },
+                    { id: 25, size: "20.5", value: "20.5" },
+                    { id: 26, size: "20.75", value: "20.75" },
+                    { id: 27, size: "21", value: "21" },
+                    { id: 28, size: "21.25", value: "21.25" },
+                    { id: 29, size: "21.5", value: "21.5" },
+                    { id: 30, size: "21.75", value: "21.75" },
+                    { id: 31, size: "22", value: "22" },
+                    { id: 32, size: "22.25", value: "22.25" },
+                    { id: 33, size: "22.5", value: "22.5" },
+                    { id: 34, size: "22.75", value: "22.75" },
+                    { id: 35, size: "23", value: "23" },
+                    { id: 36, size: "23.25", value: "23.25" },
+                    { id: 37, size: "23.5", value: "23.5" },
+                    { id: 38, size: "23.75", value: "23.75" },
+                    { id: 39, size: "24", value: "24" },
                 ];
 
                 // Format response with translations (fallback to default if translation not available)
@@ -4188,10 +4210,15 @@ const designController = () => {
                         });
 
                         // Set is_filter_available for each design
+                        const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
                         for (let i = 0; i < designArray.length; i++) {
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             if (designArray[i].product_id === 55) {
-                                designArray[i].is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                designArray[i].is_filter_available = filterAvailable.TheFlowerType; // 4
+                                continue;
+                            }
+                            else if (productIds70to81.includes(designArray[i].product_id)) {
+                                designArray[i].is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                                 continue;
                             }
 
@@ -4730,12 +4757,14 @@ const designController = () => {
                                     fieldsToUpdate[key] = designObj[key];
                                 }
                             });
-
+                            const productIds70to81 = Array.from({length: 12}, (_, i) => i + 70);
                             // Determine is_filter_available based on diamond details count
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             const productId = existingDesign.product_id || designObj.product_id;
                             if (productId === 55) {
-                                fieldsToUpdate.is_filter_available = filterAvailable.MultipleDiamond; // 2
+                                fieldsToUpdate.is_filter_available = filterAvailable.TheFlowerType; // 4
+                            } else if (productIds70to81.includes(productId)) {
+                                fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                             } else if (diamondDetailsArray.length > 0) {
                                 // We're updating diamond details - set based on new count
                                 if (diamondDetailsArray.length === 0) {
