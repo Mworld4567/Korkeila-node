@@ -44,10 +44,16 @@ const priceMessages = {
     currencySymbol: "€ ",
 };
 
+const categoryId = {
+    Bracelets: 2,
+    NecklacesAndPendants: 3,
+};
+
 module.exports = {
     globalAdminActions,
     priceFlag,
     filterAvailable,
     languageId,
     priceMessages,
+    categoryId,
 };
