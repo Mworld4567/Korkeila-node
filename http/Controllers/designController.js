@@ -1614,7 +1614,7 @@ const designController = () => {
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
                     // is_filter_available: isFilterAvailable,
-                    price_flag: req.body.price_flag || priceFlag.NotSet,
+                    // price_flag: req.body.price_flag || priceFlag.NotSet,
                     // price: req.body.price || 0,
                     // pricing_message: req.body.pricing_message || null,
                 };
