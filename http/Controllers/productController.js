@@ -1353,26 +1353,29 @@ const productController = () => {
 
                         // Initialize total_price - ensure it's always set fresh, never append
                         let totalPriceValue = null;
-
+                        let totalPriceValueOutside = null;
                         // Only ONE condition should execute per design
                         if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
                             // Condition 1: price_flag == 1: Show calculated price
                             totalPriceValue = `${priceMessages.currencySymbol}${calculatedRounded}`;
+                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
                         } else if (priceFlagValue === 2) {
                             // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
                             const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
                             totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${basePrice}`;
                         } else if (priceFlagValue === 4 && dbPrice === 0) {
                             // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
                             totalPriceValue = enquirePriceText;
+                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
                         } else {
                             // Fallback: Show calculated price (for price_flag == 0 or other values)
                             totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
                         }
 
                         // Set total_price only once, ensuring no duplication
                         designData.total_price = totalPriceValue;
-
                         dataWithUrls.push({
                             id: productId,
                             product_name: item.product_name,
@@ -1381,7 +1384,7 @@ const productController = () => {
                             sub_category_id: item.product.sub_category_id,
                             style_id: item.product.style_id,
                             design: designData,
-                            total_price: designData.total_price
+                            total_price: totalPriceValueOutside
                         });
                     }
                 }
