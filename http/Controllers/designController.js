@@ -916,16 +916,40 @@ const designController = () => {
                 // }
 
                 // Prepare design data
+                const productId = parseInt(req.body.product_id);
+                const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
+
+                // Determine is_filter_available based on diamond details count (matching CSV update logic)
+                let isFilterAvailable;
+                if (productId === 55) {
+                    isFilterAvailable = filterAvailable.TheFlowerType; // 4
+                } else if (productIds70to81.includes(productId)) {
+                    isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                } else if (req.body.diamond_design_detail.length === 0) {
+                    isFilterAvailable = filterAvailable.NoDiamond;
+                } else if (req.body.diamond_design_detail.length === 1) {
+                    isFilterAvailable = filterAvailable.SingleDiamond;
+                } else {
+                    // Check if any diamond has is_center = 1 for multiple diamonds
+                    const hasCenterDiamond = req.body.diamond_design_detail.some(
+                        (diamondDetail) => diamondDetail.is_center === 1
+                    );
+                    if (hasCenterDiamond) {
+                        isFilterAvailable = filterAvailable.CenterDiamondWithMultipleDiamond; // 1
+                    } else {
+                        isFilterAvailable = filterAvailable.MultipleDiamond; // 2
+                    }
+                }
+
                 const designData = {
-                    product_id: parseInt(req.body.product_id),
+                    product_id: productId,
                     design_variant_name: req.body.product_name.trim(),
                     category_id: product.category_id,
                     sub_category_id: product.sub_category_id,
                     metal_rate_id: parseInt(req.body.metal_rate_id),
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
-                    is_filter_available: req.body.diamond_design_detail.length == 0 ?
-                        filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
+                    is_filter_available: isFilterAvailable,
                     price_flag: req.body.price_flag || priceFlag.NotSet,
                     // price: req.body.price || 0,
                     // pricing_message: req.body.pricing_message || null,
@@ -1556,16 +1580,40 @@ const designController = () => {
                 // }
 
                 // Prepare design data
+                const productId = parseInt(req.body.product_id);
+                const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
+
+                // Determine is_filter_available based on diamond details count (matching CSV update logic)
+                let isFilterAvailable;
+                if (productId === 55) {
+                    isFilterAvailable = filterAvailable.TheFlowerType; // 4
+                } else if (productIds70to81.includes(productId)) {
+                    isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                } else if (req.body.diamond_design_detail.length === 0) {
+                    isFilterAvailable = filterAvailable.NoDiamond;
+                } else if (req.body.diamond_design_detail.length === 1) {
+                    isFilterAvailable = filterAvailable.SingleDiamond;
+                } else {
+                    // Check if any diamond has is_center = 1 for multiple diamonds
+                    const hasCenterDiamond = req.body.diamond_design_detail.some(
+                        (diamondDetail) => diamondDetail.is_center === 1
+                    );
+                    if (hasCenterDiamond) {
+                        isFilterAvailable = filterAvailable.CenterDiamondWithMultipleDiamond; // 1
+                    } else {
+                        isFilterAvailable = filterAvailable.MultipleDiamond; // 2
+                    }
+                }
+
                 const designData = {
-                    product_id: parseInt(req.body.product_id),
+                    product_id: productId,
                     design_variant_name: req.body.product_name.trim(),
                     category_id: product.category_id,
                     sub_category_id: product.sub_category_id,
                     metal_rate_id: parseInt(req.body.metal_rate_id),
                     metal_weight: parseFloat(req.body.weight),
                     mark_up: req.body.mark_up && req.body.mark_up !== "" ? parseFloat(req.body.mark_up) : 0,
-                    is_filter_available: req.body.diamond_design_detail.length == 0 ?
-                        filterAvailable.NoDiamond : (req.body.diamond_design_detail.length > 1 ? filterAvailable.MultipleDiamond : filterAvailable.SingleDiamond),
+                    // is_filter_available: isFilterAvailable,
                     price_flag: req.body.price_flag || priceFlag.NotSet,
                     // price: req.body.price || 0,
                     // pricing_message: req.body.pricing_message || null,
