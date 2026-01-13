@@ -1367,7 +1367,7 @@ const productController = () => {
                         } else if (priceFlagValue === 4 && dbPrice === 0) {
                             // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
                             totalPriceValue = enquirePriceText;
-                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
+                            totalPriceValueOutside = `${enquirePriceText}`;
                         } else {
                             // Fallback: Show calculated price (for price_flag == 0 or other values)
                             totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
