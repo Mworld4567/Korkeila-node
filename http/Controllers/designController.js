@@ -26,7 +26,7 @@ const Language = require("../../Models/Language");
 const csvtojson = require("csvtojson");
 const fs = require("fs");
 const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
-const { priceFlag, filterAvailable, languageId, priceMessages } = require("../../config/globalVariable");
+const { priceFlag, filterAvailable, languageId, priceMessages, categoryId } = require("../../config/globalVariable");
 const converter = require("json-2-csv");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
 
@@ -917,13 +917,12 @@ const designController = () => {
 
                 // Prepare design data
                 const productId = parseInt(req.body.product_id);
-                const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
 
                 // Determine is_filter_available based on diamond details count (matching CSV update logic)
                 let isFilterAvailable;
                 if (productId === 55) {
                     isFilterAvailable = filterAvailable.TheFlowerType; // 4
-                } else if (productIds70to81.includes(productId)) {
+                } else if (categoryId.Bracelets === product.category_id) {
                     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                 } else if (req.body.diamond_design_detail.length === 0) {
                     isFilterAvailable = filterAvailable.NoDiamond;
@@ -1581,13 +1580,12 @@ const designController = () => {
 
                 // Prepare design data
                 const productId = parseInt(req.body.product_id);
-                const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
 
                 // Determine is_filter_available based on diamond details count (matching CSV update logic)
                 let isFilterAvailable;
                 if (productId === 55) {
                     isFilterAvailable = filterAvailable.TheFlowerType; // 4
-                } else if (productIds70to81.includes(productId)) {
+                } else if (categoryId.Bracelets === product.category_id) {
                     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                 } else if (req.body.diamond_design_detail.length === 0) {
                     isFilterAvailable = filterAvailable.NoDiamond;
@@ -4258,14 +4256,13 @@ const designController = () => {
                         });
 
                         // Set is_filter_available for each design
-                        const productIds70to81 = Array.from({ length: 12 }, (_, i) => i + 70);
                         for (let i = 0; i < designArray.length; i++) {
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             if (designArray[i].product_id === 55) {
                                 designArray[i].is_filter_available = filterAvailable.TheFlowerType; // 4
                                 continue;
                             }
-                            else if (productIds70to81.includes(designArray[i].product_id)) {
+                            else if (categoryId.Bracelets === designArray[i].category_id) {
                                 designArray[i].is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                                 continue;
                             }
@@ -4805,13 +4802,12 @@ const designController = () => {
                                     fieldsToUpdate[key] = designObj[key];
                                 }
                             });
-                            const productIds70to81 = Array.from({length: 12}, (_, i) => i + 70);
                             // Determine is_filter_available based on diamond details count
                             // Special case: if product_id is 55, set is_filter_available to 2 (MultipleDiamond)
                             const productId = existingDesign.product_id || designObj.product_id;
                             if (productId === 55) {
                                 fieldsToUpdate.is_filter_available = filterAvailable.TheFlowerType; // 4
-                            } else if (productIds70to81.includes(productId)) {
+                            } else if (categoryId.Bracelets === existingDesign.category_id) {
                                 fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                             } else if (diamondDetailsArray.length > 0) {
                                 // We're updating diamond details - set based on new count
