@@ -1370,8 +1370,11 @@ const productController = () => {
                             totalPriceValueOutside = `${enquirePriceText}`;
                         } else {
                             // Fallback: Show calculated price (for price_flag == 0 or other values)
-                            totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
-                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
+                            // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                            totalPriceValue = `${enquirePriceText}`;
+                            totalPriceValueOutside = `${enquirePriceText}`;
+                            // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                            // totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
                         }
 
                         // Set total_price only once, ensuring no duplication
