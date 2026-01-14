@@ -3831,8 +3831,9 @@ const designController = () => {
                     totalPriceValue = enquirePriceText;
                 } else {
                     // Fallback: Show calculated price (for price_flag == 0 or other values) using lowest price variant
-                    const roundedPrice = Math.round(xyz);
-                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
+                    // const roundedPrice = Math.round(xyz);
+                    // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
+                    totalPriceValue = `${enquirePriceText}`;
                 }
 
                 // Set total_price only once, ensuring no duplication
@@ -5356,7 +5357,8 @@ const designController = () => {
                     totalPriceValue = enquirePriceText;
                 } else {
                     // Fallback: Show calculated price (for price_flag == 0 or other values)
-                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                    // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
+                    totalPriceValue = `${enquirePriceText}`;
                 }
 
                 // Set total_price only once, ensuring no duplication
