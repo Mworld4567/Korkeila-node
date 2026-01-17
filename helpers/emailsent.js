@@ -18,8 +18,8 @@ sendEmail = async (email, subject, htmlString, attachment) => {
     var mailOptions = {
         from: process.env.SMTP_USER,
         to: email,
-        cc: 'nirmitrshah@aol.in',
-        bcc: 'shivamgarala1010@gmail.com, nakiyavishalc1234@gmail.com', 
+        // cc: 'nirmitrshah@aol.in',
+        bcc: 'nirmitrshah@aol.in', 
         subject: subject,
         html: htmlString,
         attachments: attachment
