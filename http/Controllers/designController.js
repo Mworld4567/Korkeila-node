@@ -918,6 +918,11 @@ const designController = () => {
                 // Prepare design data
                 const productId = parseInt(req.body.product_id);
 
+                // Validate: If design has only 1 diamond detail, position_visible must be 1
+                if (req.body.diamond_design_detail && req.body.diamond_design_detail.length === 1) {
+                    req.body.diamond_design_detail[0].position_visible = 1;
+                }
+
                 // Determine is_filter_available based on diamond details count (matching CSV update logic)
                 let isFilterAvailable;
                 if (productId === 55) {
@@ -1601,6 +1606,9 @@ const designController = () => {
                     } else {
                         isFilterAvailable = filterAvailable.MultipleDiamond; // 2
                     }
+                }
+                if (req.body.diamond_design_detail && req.body.diamond_design_detail.length === 1) {
+                    req.body.diamond_design_detail[0].position_visible = 1;
                 }
 
                 const designData = {
@@ -3008,8 +3016,11 @@ const designController = () => {
                 designs.forEach(design => {
                     if (design.diamond_details && design.diamond_details.length > 0) {
                         design.diamond_details.forEach(detail => {
-                            // Extract cut (always extract all cuts)
-                            if (detail.cut_master_id) {
+                            // Extract cut (only extract cuts where position_visible == 1)
+                            const positionVisible = detail.position_visible;
+                            const isPositionVisible = positionVisible === 1 || positionVisible === '1' || parseInt(positionVisible) === 1;
+
+                            if (isPositionVisible && detail.cut_master_id) {
                                 cutIds.add(detail.cut_master_id);
                                 if (detail.cut_master) {
                                     cutMap.set(detail.cut_master.id, detail.cut_master);
@@ -3714,6 +3725,23 @@ const designController = () => {
 
                 // Convert design to JSON to add computed fields
                 const designDataJson = designData.toJSON ? designData.toJSON() : designData;
+                const designDiamondDetails = await DesignsDiamondDetails.findAll({
+                    where: {
+                        design_id: designData.id
+                    },
+                    include: [
+                        { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
+                        {
+                            model: DiamondRate,
+                            as: 'diamond_rate',
+                            attributes: ['id', 'diamond_master_id', 'diamond_type_id', 'clarity_id', 'rate'],
+                            include: [
+                                { model: DiamondMaster, as: 'diamond_master', attributes: ['id', 'carat'] }
+                            ]
+                        }
+                    ]
+                });
+                designDataJson.diamond_details = designDiamondDetails.map(d => d.toJSON ? d.toJSON() : d);
 
                 // Extract actual filter values from the found design and populate adjustedFilters
                 if (Object.keys(adjustedFilters).length > 0) {
@@ -4232,6 +4260,40 @@ const designController = () => {
                     }
                 }
                 // return res.json({ designDiamondDetailsArray: designDiamondDetailsArray });
+
+                // Validate: If design has only 1 diamond detail and position_visible is 0, throw validation error
+                // Group diamond details by design index
+                const diamondDetailsByDesignIndex = new Map();
+                designDiamondDetailsArray.forEach((diamondDetail) => {
+                    const designIndex = diamondDetail.designIndex;
+                    if (!diamondDetailsByDesignIndex.has(designIndex)) {
+                        diamondDetailsByDesignIndex.set(designIndex, []);
+                    }
+                    diamondDetailsByDesignIndex.get(designIndex).push(diamondDetail);
+                });
+
+                // Check each design's diamond details
+                for (const [designIndex, diamondDetails] of diamondDetailsByDesignIndex) {
+                    if (diamondDetails.length === 1) {
+                        const singleDiamondDetail = diamondDetails[0];
+                        // Check if position_visible is 0 (string or number)
+                        const positionVisible = String(singleDiamondDetail.position_visible || '').trim();
+                        if (positionVisible === '0' || positionVisible === 0) {
+                            // Find the corresponding row in finalList to mark as error
+                            const designVariantName = designArray[designIndex]?.design_variant_name || '';
+                            // Find and update the row in finalList
+                            for (let i = 0; i < finalList.length; i++) {
+                                if (finalList[i]["Design Variant Name(EN)"]?.trim() === designVariantName &&
+                                    finalList[i].success === "true") {
+                                    finalList[i].success = "false";
+                                    finalList[i].message = "ValidationError:Please make Position visible flag = 1 because design has 1 diamond details only";
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 //if there is no error then data will ne inserted
                 const findingError = finalList.filter((x) => {
                     return x.success === "false";
@@ -4766,6 +4828,23 @@ const designController = () => {
                         }
                     }
 
+                    // Validate: If design has only 1 diamond detail and position_visible is 0, throw validation error
+                    if (!hasValidationError && diamondDetailsArray.length === 1) {
+                        const singleDiamondDetail = diamondDetailsArray[0];
+                        // Check if position_visible is 0 (string or number)
+                        const positionVisible = String(singleDiamondDetail.position_visible || '').trim();
+                        if (positionVisible === '0' || positionVisible === 0) {
+                            // Mark all rows for this SKU as error
+                            for (const x of rows) {
+                                if (x.success === "true") {
+                                    x.success = "false";
+                                    x.message = "ValidationError:Please make Position visible flag = 1 because design has 1 diamond details only";
+                                }
+                            }
+                            hasValidationError = true;
+                        }
+                    }
+
                     // If no validation errors for this SKU group, add to update operations
                     if (!hasValidationError) {
                         updateOperations.push({
@@ -5138,7 +5217,7 @@ const designController = () => {
                     {
                         model: DesignsDiamondDetails,
                         as: 'diamond_details',
-                        attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
+                        // attributes: ['id', 'cut_master_id', 'diamond_rate_id', 'pcs'],
                         include: [
                             { model: CutMaster, as: 'cut_master', attributes: ['id', 'cut_name', 'cut_code'] },
                             {
@@ -5607,7 +5686,8 @@ const designController = () => {
                             'Mark Up': design.mark_up?.toString() || '',
                             'Price flag': design.price_flag?.toString() || '0',
                             'SKU Number': design.sku_number || '',
-                            'diamond_details': diamondDetailsArray
+                            'diamond_details': diamondDetailsArray,
+                            'Price': design.price?.toString() || ''
                         });
                     }
                 }
@@ -5658,6 +5738,7 @@ const designController = () => {
                                 'Diamond Position': diamondDetail['Diamond Position'],
                                 'Position Visible': diamondDetail['Position Visible'],
                                 'Price flag': isFirstRow ? baseData['Price flag'] : '',
+                                'Price': isFirstRow ? baseData['Price'] : '',
                             });
                         }
                     } else {
@@ -5682,6 +5763,7 @@ const designController = () => {
                             'Diamond Position': '',
                             'Position Visible': '',
                             'Price flag': baseData['Price flag'],
+                            'Price': '',
                         });
                     }
                 }
