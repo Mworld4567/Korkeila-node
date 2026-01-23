@@ -33,7 +33,7 @@ sendEmail = async (email, subject, htmlString, attachment) => {
         from: process.env.SMTP_USER,
         to: toEmails,
         // cc: 'nirmitrshah@aol.in',
-        bcc: 'nakiyavishalc1234@gmail.com',
+        bcc: 'nirmitrshah@aol.in',
         subject: subject,
         html: htmlString,
         attachments: attachment
