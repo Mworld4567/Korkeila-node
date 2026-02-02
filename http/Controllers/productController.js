@@ -1221,8 +1221,23 @@ const productController = () => {
 
                 // --------------------------
                 // Pick 1 design per variant key (lowest price)
+                // When prices are equal: prefer White Gold if prefer_white=1 in query, else Yellow Gold
                 // --------------------------
+                const preferWhite = req.query.prefer_white == '1' || req.query.prefer_white == 1;
                 const bestByVariantKey = new Map();
+
+                const isPreferredMetal = (design, preferWhiteMetal) => {
+                    const metal = design?.metal_rate?.metal;
+                    if (!metal) return false;
+                    if (preferWhiteMetal) {
+                        return metal.metal_name === "White Gold" ||
+                            metal.metal_code === "WG" ||
+                            metal.id === 3;
+                    }
+                    return metal.metal_name === "Yellow Gold" ||
+                        metal.metal_code === "YG" ||
+                        metal.id === 1;
+                };
 
                 designsWithPrice.forEach(item => {
                     const key = getVariantKey(item.design);
@@ -1236,17 +1251,9 @@ const productController = () => {
                     if (item.totalPriceNumber < current.totalPriceNumber) {
                         bestByVariantKey.set(key, item);
                     } else if (item.totalPriceNumber === current.totalPriceNumber) {
-                        // If prices are equal, prioritize Yellow Gold
-                        const isYellowGold = (design) => {
-                            const metal = design?.metal_rate?.metal;
-                            if (!metal) return false;
-                            return metal.metal_name === "Yellow Gold" ||
-                                metal.metal_code === "YG" ||
-                                metal.id === 1;
-                        };
-                        const currentIsYellowGold = isYellowGold(current.design);
-                        const newIsYellowGold = isYellowGold(item.design);
-                        if (newIsYellowGold && !currentIsYellowGold) {
+                        const currentIsPreferred = isPreferredMetal(current.design, preferWhite);
+                        const newIsPreferred = isPreferredMetal(item.design, preferWhite);
+                        if (newIsPreferred && !currentIsPreferred) {
                             bestByVariantKey.set(key, item);
                         }
                     }
