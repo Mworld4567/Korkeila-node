@@ -10,6 +10,7 @@ const Country = require("../../Models/Country");
 const sequelize = require("../../config/dbconfig");
 const DisabledDateforAppointment = require("../../Models/DisabledDateforAppointment");
 const DisabledTimeSlotsForAppointment = require("../../Models/DisabledTimeSlotsForAppointment");
+const dateFunc = require("../../helpers/dateFunc");
 const appointmentController = () => {
     return {
         create: async (req, res) => {
@@ -373,6 +374,46 @@ const appointmentController = () => {
                     data: result,
                 });
             } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        deleteDisabledDateAndTimeSlots: async (req, res) => {
+            const transaction = await sequelize.transaction();
+            try {
+                const id = req.params.id;
+                const adminId = req.user.id;
+
+                const disabledDate = await DisabledDateforAppointment.findOne({
+                    where: { deleted_at: null, id: id, admin_id: adminId },
+                    transaction,
+                });
+
+                if (!disabledDate) {
+                    await transaction.rollback();
+                    return res.status(400).json({
+                        success: false,
+                        message: "Disabled date not found.",
+                    });
+                }
+
+                const dateTime = dateFunc();
+                await DisabledDateforAppointment.update({ deleted_at: dateTime }, { where: { id: id }, transaction });
+                await DisabledTimeSlotsForAppointment.update({ deleted_at: dateTime }, { where: { disabled_date_for_appointment_id: id }, transaction });
+
+                await transaction.commit();
+
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Disabled date deleted successfully",
+                });
+            } catch (error) {
+                await transaction.rollback();
                 console.log(error);
                 logError(error, req);
                 return res.status(500).json({
