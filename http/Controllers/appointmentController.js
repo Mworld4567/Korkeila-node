@@ -5,6 +5,7 @@ const logMiddleware = require("../middlewares/logMiddleware");
 const helperFunc = require("../../helpers/helperFunc");
 const globalVariable = require("../../config/globalVariable");
 const sendEmail = require("../../helpers/emailsent");
+const Country = require("../../Models/Country");
 const appointmentController = () => {
     return {
         create: async (req, res) => {
@@ -210,6 +211,49 @@ const appointmentController = () => {
                     success: true,
                     message: "Time slots retrieved successfully",
                     data: timeSlots
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
+        getCountries: async (req, res) => {
+            try {
+                
+                const countries = await Country.findAll({
+                    order: [['country_name', 'ASC']]
+                });
+                const countryData = countries.map(country => ({
+                    id: country.id,
+                    country: country.country_name,
+                    iso_code: country.iso_code,
+                    phone_code: country.phone_code,
+                }));
+                
+                return res.status(200).json({
+                    success: true,
+                    message: "Countries retrieved successfully",
+                    data: countryData
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error"
+                });
+            }
+        },
+        disableDateAndTimeSlots: async (req, res) => {
+            try {
+                
+                return res.status(200).json({
+                    success: true,
+                    message: "Date and time slots disabled successfully",
                 });
             } catch (error) {
                 console.log(error);
