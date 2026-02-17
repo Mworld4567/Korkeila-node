@@ -13,6 +13,8 @@ Router.post("/disable-date-and-time-slots", authMiddleware, appointmentControlle
 Router.get("/get-disabled-date-and-time-slots/dashboard", authMiddleware, appointmentController().getDisabledDateAndTimeSlots);
 Router.get("/get-disabled-date-and-time-slots", appointmentController().getDisabledDateAndTimeSlots);
 
+Router.delete("/delete-disabled-date-and-time-slots/:id", authMiddleware, appointmentController().deleteDisabledDateAndTimeSlots);
+
 
 
 
