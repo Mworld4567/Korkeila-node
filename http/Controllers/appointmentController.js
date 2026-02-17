@@ -336,11 +336,12 @@ const appointmentController = () => {
                 for (const item of disabledDates) {
                     const date = item.date;
                     if (!dateMap[date]) {
-                        dateMap[date] = [];
+                        dateMap[date] = { date_id: item.id, date, disabled_timeSlots: [] };
                     }
                     if (item.disabled_time_slots && item.disabled_time_slots.length > 0) {
                         for (const slot of item.disabled_time_slots) {
-                            dateMap[date].push({
+                            dateMap[date].disabled_timeSlots.push({
+                                time_slot_id: slot.id,
                                 time_slot: slot.time_slot,
                                 flag: 0,
                             });
@@ -352,21 +353,17 @@ const appointmentController = () => {
                 for (const appointment of bookedAppointments) {
                     const date = appointment.date;
                     if (!dateMap[date]) {
-                        dateMap[date] = [];
+                        dateMap[date] = { date_id: null, date, disabled_timeSlots: [] };
                     }
-                    dateMap[date].push({
+                    dateMap[date].disabled_timeSlots.push({
                         time_slot: appointment.time_slot,
                         flag: 1,
                     });
                 }
 
                 // Convert map to array sorted by date ascending
-                const result = Object.keys(dateMap)
-                    .sort((a, b) => new Date(a) - new Date(b))
-                    .map((date) => ({
-                        date,
-                        disabled_timeSlots: dateMap[date],
-                    }));
+                const result = Object.values(dateMap)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 return res.status(200).json({
                     success: true,
@@ -385,11 +382,12 @@ const appointmentController = () => {
         deleteDisabledDateAndTimeSlots: async (req, res) => {
             const transaction = await sequelize.transaction();
             try {
-                const id = req.params.id;
+                const date_id = req.params.date_id;
+                const time_slot_id = req.params.time_slot_id;
                 const adminId = req.user.id;
 
                 const disabledDate = await DisabledDateforAppointment.findOne({
-                    where: { deleted_at: null, id: id, admin_id: adminId },
+                    where: { deleted_at: null, id: date_id, admin_id: adminId },
                     transaction,
                 });
 
@@ -402,15 +400,42 @@ const appointmentController = () => {
                 }
 
                 const dateTime = dateFunc();
-                await DisabledDateforAppointment.update({ deleted_at: dateTime }, { where: { id: id }, transaction });
-                await DisabledTimeSlotsForAppointment.update({ deleted_at: dateTime }, { where: { disabled_date_for_appointment_id: id }, transaction });
+
+                if (!time_slot_id) {
+                    // No time_slot_id provided — delete main date record and all its child time slots
+                    await DisabledDateforAppointment.update({ deleted_at: dateTime }, { where: { id: date_id }, transaction });
+                    await DisabledTimeSlotsForAppointment.update({ deleted_at: dateTime }, { where: { disabled_date_for_appointment_id: date_id }, transaction });
+
+                    await transaction.commit();
+                    return res.status(200).json({
+                        success: true,
+                        message: "Disabled date and all time slots deleted successfully",
+                    });
+                }
+
+                // time_slot_id provided — delete only that one time slot
+                await DisabledTimeSlotsForAppointment.update(
+                    { deleted_at: dateTime },
+                    { where: { disabled_date_for_appointment_id: date_id, id: time_slot_id }, transaction }
+                );
+
+                // Check if any active time slots remain for this date
+                const remainingSlots = await DisabledTimeSlotsForAppointment.count({
+                    where: { disabled_date_for_appointment_id: date_id, deleted_at: null },
+                    transaction,
+                });
+
+                if (remainingSlots === 0) {
+                    // All time slots deleted — also delete the main date record
+                    await DisabledDateforAppointment.update({ deleted_at: dateTime }, { where: { id: date_id }, transaction });
+                }
 
                 await transaction.commit();
-
-
                 return res.status(200).json({
                     success: true,
-                    message: "Disabled date deleted successfully",
+                    message: remainingSlots === 0
+                        ? "Disabled date and all time slots deleted successfully"
+                        : "Time slot deleted successfully",
                 });
             } catch (error) {
                 await transaction.rollback();
