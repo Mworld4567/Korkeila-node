@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const Appointment = require("../../Models/Appointment");
 const SiteSetting = require("../../Models/SiteSetting");
 const logError = require("../../logger/log");
@@ -6,6 +7,9 @@ const helperFunc = require("../../helpers/helperFunc");
 const globalVariable = require("../../config/globalVariable");
 const sendEmail = require("../../helpers/emailsent");
 const Country = require("../../Models/Country");
+const sequelize = require("../../config/dbconfig");
+const DisabledDateforAppointment = require("../../Models/DisabledDateforAppointment");
+const DisabledTimeSlotsForAppointment = require("../../Models/DisabledTimeSlotsForAppointment");
 const appointmentController = () => {
     return {
         create: async (req, res) => {
@@ -231,7 +235,7 @@ const appointmentController = () => {
                     id: country.id,
                     country: country.country_name,
                     iso_code: country.iso_code,
-                    phone_code: country.phone_code,
+                    phone_code: `+${country.phone_code}`,
                 }));
                 
                 return res.status(200).json({
@@ -249,18 +253,131 @@ const appointmentController = () => {
             }
         },
         disableDateAndTimeSlots: async (req, res) => {
+            const transaction = await sequelize.transaction();
             try {
-                
+                const payload = req.body;
+                const adminId = req.user.id;
+
+                for (const item of payload) {
+                    if (!item.date) {
+                        await transaction.rollback();
+                        return res.status(400).json({
+                            success: false,
+                            message: "Each item must have a date.",
+                        });
+                    }
+
+                    // Create the disabled date record
+                    const disabledDate = await DisabledDateforAppointment.create(
+                        {
+                            admin_id: adminId,
+                            date: item.date,
+                            flag: 0,
+                        },
+                        { transaction }
+                    );
+
+                    // Create time slot records if any are provided
+                    if (Array.isArray(item.disabled_timeSlots) && item.disabled_timeSlots.length > 0) {
+                        const timeSlotsData = item.disabled_timeSlots.map((slot) => ({
+                            admin_id: adminId,
+                            disabled_date_for_appointment_id: disabledDate.id,
+                            time_slot: slot.time_slot,
+                            flag: slot.flag !== undefined ? slot.flag : 0,
+                        }));
+
+                        await DisabledTimeSlotsForAppointment.bulkCreate(timeSlotsData, { transaction });
+                    }
+                }
+
+                await transaction.commit();
+
                 return res.status(200).json({
                     success: true,
                     message: "Date and time slots disabled successfully",
+                });
+            } catch (error) {
+                await transaction.rollback();
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        getDisabledDateAndTimeSlots: async (req, res) => {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                const disabledDates = await DisabledDateforAppointment.findAll({
+                    where: { deleted_at: null, date: { [Op.gte]: today } },
+                    include: [
+                        {
+                            model: DisabledTimeSlotsForAppointment,
+                            as: 'disabled_time_slots',
+                            where: { deleted_at: null },
+                            required: false,
+                        },
+                    ],
+                    order: [['date', 'ASC']],
+                });
+
+                const bookedAppointments = await Appointment.findAll({
+                    where: { deleted_at: null, date: { [Op.gte]: today } },
+                    order: [['date', 'ASC']],
+                });
+
+                // Group by date using a map
+                const dateMap = {};
+
+                // Add disabled time slots with flag 0
+                for (const item of disabledDates) {
+                    const date = item.date;
+                    if (!dateMap[date]) {
+                        dateMap[date] = [];
+                    }
+                    if (item.disabled_time_slots && item.disabled_time_slots.length > 0) {
+                        for (const slot of item.disabled_time_slots) {
+                            dateMap[date].push({
+                                time_slot: slot.time_slot,
+                                flag: 0,
+                            });
+                        }
+                    }
+                }
+
+                // Add booked appointments with flag 1
+                for (const appointment of bookedAppointments) {
+                    const date = appointment.date;
+                    if (!dateMap[date]) {
+                        dateMap[date] = [];
+                    }
+                    dateMap[date].push({
+                        time_slot: appointment.time_slot,
+                        flag: 1,
+                    });
+                }
+
+                // Convert map to array sorted by date ascending
+                const result = Object.keys(dateMap)
+                    .sort((a, b) => new Date(a) - new Date(b))
+                    .map((date) => ({
+                        date,
+                        disabled_timeSlots: dateMap[date],
+                    }));
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Disabled date and time slots retrieved successfully",
+                    data: result,
                 });
             } catch (error) {
                 console.log(error);
                 logError(error, req);
                 return res.status(500).json({
                     success: false,
-                    message: "Internal server error"
+                    message: "Internal server error",
                 });
             }
         }
