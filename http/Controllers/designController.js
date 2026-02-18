@@ -27,6 +27,7 @@ const csvtojson = require("csvtojson");
 const fs = require("fs");
 const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
 const { priceFlag, filterAvailable, languageId, priceMessages, categoryId } = require("../../config/globalVariable");
+const { getCurrencyRate, formatPriceInCurrency } = require("../../helpers/currencyHelper");
 const converter = require("json-2-csv");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
 
@@ -3378,6 +3379,12 @@ const designController = () => {
                 const cutId = req.query.cut_id || req.body.cut_id;
                 const lastChangedFilter = req.query.last_changed_filter || req.body.last_changed_filter; // Track which filter was changed last
                 const languageId = (req.query.language_id || req.body.language_id) ? parseInt(req.query.language_id || req.body.language_id) : null; // Language ID for translation filtering
+                const requestedCurrency = (req.query.currency || req.body.currency || "EUR").toString().toUpperCase();
+                let currencyRate = 1;
+                if (requestedCurrency !== "EUR") {
+                    const r = await getCurrencyRate(requestedCurrency);
+                    if (r != null && r > 0) currencyRate = r;
+                }
 
                 if (!productId) {
                     return res.status(400).json({
@@ -3841,30 +3848,20 @@ const designController = () => {
                 // Parse price_flag to handle both string and number types
                 const priceFlagValue = parseInt(designDataJson.price_flag) || 0;
                 const designPrice = parseFloat(designDataJson.price) || 0;
+                const priceNum = priceFlagValue === 2 && designPrice > 0 ? Math.round(designPrice) : Math.round(xyz);
+                const formattedPrice = formatPriceInCurrency(priceNum, requestedCurrency, currencyRate);
 
-                // Initialize total_price - ensure it's always set fresh, never append
                 let totalPriceValue = null;
-
-                // Only ONE condition should execute per design
-                // Use lowest price variant (xyz) for calculated price display
                 if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
-                    // Condition 1: price_flag == 1: Show calculated price (using lowest price variant)
-                    totalPriceValue = priceMessages.currencySymbol + Math.round(xyz);
+                    totalPriceValue = formattedPrice;
                 } else if (priceFlagValue === 2) {
-                    // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
-                    const basePrice = designPrice > 0 ? Math.round(designPrice) : Math.round(xyz);
-                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                    totalPriceValue = `${startingFromText} ${formattedPrice} ${enquirePriceText}`;
                 } else if (priceFlagValue === 4 && designPrice === 0) {
-                    // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
                     totalPriceValue = enquirePriceText;
                 } else {
-                    // Fallback: Show calculated price (for price_flag == 0 or other values) using lowest price variant
-                    // const roundedPrice = Math.round(xyz);
-                    // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${roundedPrice} ${enquirePriceText}`;
-                    totalPriceValue = `${enquirePriceText}`;
+                    totalPriceValue = enquirePriceText;
                 }
 
-                // Set total_price only once, ensuring no duplication
                 designDataJson.total_price = totalPriceValue;
 
                 // Prepare response
@@ -5082,6 +5079,13 @@ const designController = () => {
         },
         relatedProductDetailsForEcom: async (req, res) => {
             try {
+                const requestedCurrency = (req.query.currency || "EUR").toString().toUpperCase();
+                let currencyRate = 1;
+                if (requestedCurrency !== "EUR") {
+                    const r = await getCurrencyRate(requestedCurrency);
+                    if (r != null && r > 0) currencyRate = r;
+                }
+
             // If product_id is provided, fetch its sub_category_id first
             let targetSubCategoryId = null;
             if (req.query.product_id !== undefined && req.query.product_id !== null && req.query.product_id !== '') {
@@ -5405,42 +5409,28 @@ const designController = () => {
                     }
                 }
 
-                // Add total_price to design data based on price_flag
-                // Support for two languages: English (1) and Finnish (2)
-                const currentLanguageId = parseInt(req.query.language_id) || languageId.English; // Default to English (1) if not specified
+                // Add total_price in requested currency (from backend)
+                const currentLanguageId = parseInt(req.query.language_id) || languageId.English;
                 const startingFromText = priceMessages.startingFrom[currentLanguageId] || priceMessages.startingFrom[languageId.English];
                 const enquirePriceText = priceMessages.enquirePrice[currentLanguageId] || priceMessages.enquirePrice[languageId.English];
-
-                // Use calculatedPrice for display when needed (price_flag == 1 or fallback)
                 const calculatedPrice = item.calculatedPrice || item.totalPrice;
                 const calculatedRounded = Math.round(calculatedPrice);
                 const dbPrice = Number(designData.price || 0);
                 const dbPriceRounded = Math.round(dbPrice);
-
-                // Parse price_flag to handle both string and number types
                 const priceFlagValue = parseInt(designData.price_flag) || 0;
+                const priceNum = priceFlagValue === 2 && dbPrice > 0 ? dbPriceRounded : calculatedRounded;
+                const formattedPrice = formatPriceInCurrency(priceNum, requestedCurrency, currencyRate);
 
-                // Initialize total_price - ensure it's always set fresh, never append
                 let totalPriceValue = null;
-
-                // Only ONE condition should execute per design
                 if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
-                    // Condition 1: price_flag == 1: Show calculated price
-                    totalPriceValue = `${priceMessages.currencySymbol}${calculatedRounded}`;
+                    totalPriceValue = formattedPrice;
                 } else if (priceFlagValue === 2) {
-                    // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
-                    const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
-                    totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
+                    totalPriceValue = `${startingFromText} ${formattedPrice} ${enquirePriceText}`;
                 } else if (priceFlagValue === 4 && dbPrice === 0) {
-                    // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
                     totalPriceValue = enquirePriceText;
                 } else {
-                    // Fallback: Show calculated price (for price_flag == 0 or other values)
-                    // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
-                    totalPriceValue = `${enquirePriceText}`;
+                    totalPriceValue = enquirePriceText;
                 }
-
-                // Set total_price only once, ensuring no duplication
                 designData.total_price = totalPriceValue;
 
                 return {
@@ -5451,9 +5441,9 @@ const designController = () => {
                     sub_category_id: productInfo.product.sub_category_id,
                     style_id: productInfo.product.style_id,
                     design: designData,
-                    total_price: designData.total_price
+                    total_price: totalPriceValue
                 };
-            }).filter(item => item !== null); // Filter out any null items
+            }).filter(item => item !== null);
 
             return res.status(200).json({
                 success: true,
