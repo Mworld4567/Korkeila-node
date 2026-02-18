@@ -21,6 +21,7 @@ const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
 const Language = require("../../Models/Language");
 const { priceFlag, languageId, priceMessages } = require("../../config/globalVariable");
+const { getCurrencyRate, formatPriceInCurrency } = require("../../helpers/currencyHelper");
 
 const productController = () => {
     return {
@@ -951,6 +952,10 @@ const productController = () => {
                         designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquireText}`;
                     }
 
+                    // Numeric EUR price for client-side currency conversion (e.g. SGD). Base currency remains EUR.
+                    const totalPriceEur = priceFlagValue === 4 && dbPrice === 0
+                        ? null
+                        : (dbPrice > 0 && priceFlagValue === 2 ? dbPriceRounded : calculatedRounded);
 
                     return {
                         id: productId,
@@ -960,7 +965,8 @@ const productController = () => {
                         sub_category_id: item.product.sub_category_id,
                         style_id: item.product.style_id,
                         design: designData,
-                        total_price: designData.total_price
+                        total_price: designData.total_price,
+                        total_price_eur: totalPriceEur
                     };
                 });
 
@@ -980,6 +986,13 @@ const productController = () => {
         },
         productListEcom: async (req, res) => {
             try {
+                const requestedCurrency = (req.query.currency || "EUR").toString().toUpperCase();
+                let currencyRate = 1;
+                if (requestedCurrency !== "EUR") {
+                    const r = await getCurrencyRate(requestedCurrency);
+                    if (r != null && r > 0) currencyRate = r;
+                }
+
                 const productWhere = {
                     is_display: 1,
                     category_id: req.query.category_id
@@ -1358,33 +1371,25 @@ const productController = () => {
                         // Parse price_flag to handle both string and number types
                         const priceFlagValue = parseInt(designData.price_flag) || 0;
 
-                        // Initialize total_price - ensure it's always set fresh, never append
+                        // Initialize total_price - ensure it's always set fresh, never append (in requested currency from backend)
                         let totalPriceValue = null;
                         let totalPriceValueOutside = null;
-                        // Only ONE condition should execute per design
+                        const priceNum = priceFlagValue === 2 && dbPrice > 0 ? dbPriceRounded : calculatedRounded;
+                        const formattedPrice = formatPriceInCurrency(priceNum, requestedCurrency, currencyRate);
                         if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
-                            // Condition 1: price_flag == 1: Show calculated price
-                            totalPriceValue = `${priceMessages.currencySymbol}${calculatedRounded}`;
-                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
+                            totalPriceValue = formattedPrice;
+                            totalPriceValueOutside = totalPriceValue;
                         } else if (priceFlagValue === 2) {
-                            // Condition 2: price_flag == 2: Show "Starting From {price from database}" and "Please enquire" (or calculated if price == 0)
-                            const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
-                            totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${basePrice} ${enquirePriceText}`;
-                            totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${basePrice}`;
+                            totalPriceValue = `${startingFromText} ${formattedPrice} ${enquirePriceText}`;
+                            totalPriceValueOutside = `${startingFromText} ${formattedPrice}`;
                         } else if (priceFlagValue === 4 && dbPrice === 0) {
-                            // Condition 3: price_flag == 4 AND designs.price == 0: Show "Please enquire" message only
                             totalPriceValue = enquirePriceText;
-                            totalPriceValueOutside = `${enquirePriceText}`;
+                            totalPriceValueOutside = enquirePriceText;
                         } else {
-                            // Fallback: Show calculated price (for price_flag == 0 or other values)
-                            // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
-                            totalPriceValue = `${enquirePriceText}`;
-                            totalPriceValueOutside = `${enquirePriceText}`;
-                            // totalPriceValue = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded} ${enquirePriceText}`;
-                            // totalPriceValueOutside = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
+                            totalPriceValue = enquirePriceText;
+                            totalPriceValueOutside = enquirePriceText;
                         }
 
-                        // Set total_price only once, ensuring no duplication
                         designData.total_price = totalPriceValue;
                         dataWithUrls.push({
                             id: productId,
