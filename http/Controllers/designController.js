@@ -3281,7 +3281,7 @@ const designController = () => {
                             id: metal.id,
                             name: metalName,
                             code: metal.metal_code,
-                            is_platinum: metalName && metalName.toLowerCase().includes('platinum') ? 1 : 0
+                            is_platinum: metal.metal_name && metal.metal_name.toLowerCase().includes('platinum') ? 1 : 0
                         };
                     }),
                     karats: karats.map(karat => ({
