@@ -71,7 +71,8 @@ const appointmentController = () => {
 
                 // Phone number validation
                 if (req.body.phone_number) {
-                    const phoneRegex = /^[0-9]{10,15}$/;
+                    // Allow + character in phone numbers (e.g. international formats)
+                    const phoneRegex = /^\+?[0-9]{10,15}$/;
                     if (!phoneRegex.test(req.body.phone_number.replace(/[\s\-\(\)]/g, ''))) {
                         return res.status(409).json({
                             success: false,
