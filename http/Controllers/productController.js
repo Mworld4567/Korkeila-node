@@ -22,6 +22,7 @@ const { extractFilename, constructImageUrl } = require("../../helpers/imageHelpe
 const Language = require("../../Models/Language");
 const { priceFlag, languageId, priceMessages } = require("../../config/globalVariable");
 const { getCurrencyRate, formatPriceInCurrency } = require("../../helpers/currencyHelper");
+const { getCutNameForLanguage } = require("../../helpers/cutTranslationHelper");
 
 const productController = () => {
     return {
@@ -767,6 +768,18 @@ const productController = () => {
                     }
                 });
 
+                // Apply cut_name translation by language_id for diamond_details
+                const productLangId = req.query.language_id || req.body.language_id;
+                allDesigns.forEach(design => {
+                    if (design.diamond_details && design.diamond_details.length > 0) {
+                        design.diamond_details.forEach(dd => {
+                            if (dd.cut_master && dd.cut_master.cut_name) {
+                                dd.cut_master.cut_name = getCutNameForLanguage(dd.cut_master.cut_name, productLangId);
+                            }
+                        });
+                    }
+                });
+
                 // Calculate total price for each design
                 // Formula: TotalPrice = ((MetalWeight × RatePerGram) + (DiamondPieces × DiamondSize × DiamondRatePerCarat)) × Markup
                 const designsWithPrice = [];
@@ -1134,6 +1147,18 @@ const productController = () => {
                             design.product.category.category_name = translations[0].category_name;
                         }
                         delete design.product.category.category_translations;
+                    }
+                });
+
+                // Apply cut_name translation by language_id for diamond_details
+                const productLangId2 = req.query.language_id || req.body.language_id;
+                allDesigns.forEach(design => {
+                    if (design.diamond_details && design.diamond_details.length > 0) {
+                        design.diamond_details.forEach(dd => {
+                            if (dd.cut_master && dd.cut_master.cut_name) {
+                                dd.cut_master.cut_name = getCutNameForLanguage(dd.cut_master.cut_name, productLangId2);
+                            }
+                        });
                     }
                 });
 

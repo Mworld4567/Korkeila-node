@@ -3,6 +3,7 @@ const CutMaster = require("../../Models/CutMaster");
 const { Op } = require("sequelize");
 const { deleteFromBucket } = require("../middlewares/awsS3Middleware");
 const { extractFilename, constructImageUrl } = require("../../helpers/imageHelper");
+const { getCutNameForLanguage } = require("../../helpers/cutTranslationHelper");
 
 const cutMasterController = () => {
     return {
@@ -74,14 +75,16 @@ const cutMasterController = () => {
         },
         read: async (req, res) => {
             try {
+                const langId = req.query.language_id || req.body.language_id;
                 const mydata = await CutMaster.findAll({
                     order: [['id', 'DESC']]
                 });
 
-                // Construct full URLs for images dynamically
+                // Construct full URLs for images dynamically; apply cut_name translation by language_id
                 const dataWithUrls = mydata.map(item => {
                     const itemData = item.toJSON();
                     itemData.cut_image = constructImageUrl(itemData.cut_image, 'cutMaster');
+                    itemData.cut_name = getCutNameForLanguage(itemData.cut_name, langId);
                     return itemData;
                 });
 
@@ -110,9 +113,11 @@ const cutMasterController = () => {
                     });
                 }
 
-                // Construct full URL for image dynamically
+                // Construct full URL for image dynamically; apply cut_name translation by language_id
+                const langId = req.query.language_id || req.body.language_id;
                 const responseData = mydata.toJSON();
                 responseData.cut_image = constructImageUrl(responseData.cut_image);
+                responseData.cut_name = getCutNameForLanguage(responseData.cut_name, langId);
 
                 return res.status(200).json({
                     success: true,

@@ -28,6 +28,7 @@ const fs = require("fs");
 const { getS3Object, deleteFromBucket, saveToBucket, getPresignedUrl } = require("../middlewares/awsS3Middleware");
 const { priceFlag, filterAvailable, languageId, priceMessages, categoryId } = require("../../config/globalVariable");
 const { getCurrencyRate, formatPriceInCurrency } = require("../../helpers/currencyHelper");
+const { getCutNameForLanguage } = require("../../helpers/cutTranslationHelper");
 const converter = require("json-2-csv");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
 
@@ -41,6 +42,7 @@ const designController = () => {
                 const page = parseInt(req.query.page) || 1;
                 const limit = parseInt(req.query.limit) || 1000;
                 const offset = (page - 1) * limit;
+                const langId = req.query.language_id || req.body.language_id;
 
                 // Get search parameter from query
                 const searchTerm = req.query.search ? req.query.search.trim() : null;
@@ -388,7 +390,7 @@ const designController = () => {
                         return {
                             id: dd.id,
                             cut_id: dd.cut_master_id,
-                            cut_name: cut?.cut_name || "",
+                            cut_name: getCutNameForLanguage(cut?.cut_name || "", langId),
                             diamond_rate_id: dd.diamond_rate_id,
                             diamond_rate_name: dd.diamond_rate?.diamond_master?.carat + " " +
                                 dd.diamond_rate?.diamond_type?.type_name + " " +
@@ -629,6 +631,7 @@ const designController = () => {
 
                 // Create lookup maps
                 const cutMastersMap = new Map(cutMastersList.map(cm => [cm.id, cm]));
+                const langIdDesignOne = req.query.language_id || req.body.language_id;
 
                 // Format diamond design details
                 const formattedDiamondDetails = diamondDetailsList.map(dd => {
@@ -637,7 +640,7 @@ const designController = () => {
                     return {
                         id: dd.id,
                         cut_id: dd.cut_master_id,
-                        cut_name: cut?.cut_name || "",
+                        cut_name: getCutNameForLanguage(cut?.cut_name || "", langIdDesignOne),
                         diamond_rate_id: dd.diamond_rate_id,
                         diamond_rate_name: diamondRate?.diamond_master?.carat + " " +
                             diamondRate?.diamond_type?.type_name + " " +
@@ -3251,7 +3254,7 @@ const designController = () => {
                 const responseData = {
                     cuts: cutMasters.map(cut => ({
                         id: cut.id,
-                        name: cut.cut_name,
+                        name: getCutNameForLanguage(cut.cut_name, languageId),
                         code: cut.cut_code,
                         image: cut.cut_image
                     })),
@@ -5616,6 +5619,7 @@ const designController = () => {
                     };
                 };
 
+                const exportLangId = req.query.language_id || req.body.language_id;
                 const exportData = [];
                 for (const [productId, productDesigns] of designsByProduct.entries()) {
                     for (const design of productDesigns) {
@@ -5640,7 +5644,7 @@ const designController = () => {
                         const diamondDetailsArray = [];
                         if (design.diamond_details && design.diamond_details.length > 0) {
                             for (const diamondDetail of design.diamond_details) {
-                                const cutName = diamondDetail.cut_master?.cut_name || '';
+                                const cutName = getCutNameForLanguage(diamondDetail.cut_master?.cut_name || '', exportLangId);
                                 const diamondCarat = diamondDetail.diamond_rate?.diamond_master?.carat?.toString() || '';
                                 const diamondType = diamondDetail.diamond_rate?.diamond_type?.type_name || '';
                                 const diamondClarity = diamondDetail.diamond_rate?.clarity?.clarity || '';
