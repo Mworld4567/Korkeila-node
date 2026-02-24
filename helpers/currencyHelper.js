@@ -29,13 +29,14 @@ async function getCurrencyRate(toCurrency) {
 function formatPriceInCurrency(eurAmount, toCurrency, rate = 1) {
     if (eurAmount == null || Number.isNaN(Number(eurAmount))) return "";
     const amount = Math.round(Number(eurAmount) * rate);
+    // Format without thousands separator (no comma)
     if (toCurrency === "SGD") {
-        return `S$ ${amount.toLocaleString("en-SG")}`;
+        return `S$ ${amount}`;
     }
     if (toCurrency === "EUR" || rate === 1) {
-        return `€ ${amount.toLocaleString("en-EU")}`;
+        return `€ ${amount}`;
     }
-    return `${toCurrency} ${amount.toLocaleString("en-EU")}`;
+    return `${toCurrency} ${amount}`;
 }
 
 /**
