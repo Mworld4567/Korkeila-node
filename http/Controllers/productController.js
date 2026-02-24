@@ -528,7 +528,17 @@ const productController = () => {
                         message: "Product not found",
                     });
                 }
-
+                const designData = await Designs.findOne({
+                    where: {
+                        product_id: req.params.id
+                    }
+                });
+                if (designData) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Design found so you can't delete the product",
+                    });
+                }
                 // Delete image from S3 if exists
                 if (productData.image) {
                     try {
@@ -545,6 +555,10 @@ const productController = () => {
 
                 await Product.destroy({
                     where: { id: req.params.id }
+                });
+
+                await ProductTranslation.destroy({
+                    where: { product_id: req.params.id }
                 });
 
                 return res.status(200).json({
@@ -1323,6 +1337,15 @@ const productController = () => {
                     // For each variant -> push one record (duplicate product info)
                     for (const v of selectedVariants) {
                         const designData = v.design.toJSON ? v.design.toJSON() : v.design;
+
+                        // Ensure diamond_details: is_center = 1 at first index
+                        if (designData.diamond_details && Array.isArray(designData.diamond_details)) {
+                            designData.diamond_details.sort((a, b) => {
+                                const aCenter = Number(a.is_center) === 1 ? 1 : 0;
+                                const bCenter = Number(b.is_center) === 1 ? 1 : 0;
+                                return bCenter - aCenter; // center (1) first
+                            });
+                        }
 
                         // Construct full image URLs for all design images
                         // Construct full image URLs for all design images
