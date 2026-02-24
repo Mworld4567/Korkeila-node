@@ -3753,6 +3753,15 @@ const designController = () => {
                 });
                 designDataJson.diamond_details = designDiamondDetails.map(d => d.toJSON ? d.toJSON() : d);
 
+                // Apply cut_name translation by language_id for diamond_details
+                if (designDataJson.diamond_details && designDataJson.diamond_details.length > 0) {
+                    designDataJson.diamond_details.forEach(dd => {
+                        if (dd.cut_master && dd.cut_master.cut_name) {
+                            dd.cut_master.cut_name = getCutNameForLanguage(dd.cut_master.cut_name, languageId);
+                        }
+                    });
+                }
+
                 // Extract actual filter values from the found design and populate adjustedFilters
                 if (Object.keys(adjustedFilters).length > 0) {
                     // Get actual metal and karat from the design
