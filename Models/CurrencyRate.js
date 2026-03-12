@@ -18,6 +18,11 @@ const CurrencyRate = sequelize.define(
             type: Sequelize.DECIMAL(18, 6),
             allowNull: false,
         },
+        show_on_website: {
+            type: Sequelize.TINYINT.UNSIGNED,
+            allowNull: false,
+            defaultValue: 1,
+        },
         created_at: { type: Sequelize.DATE, allowNull: true },
         updated_at: { type: Sequelize.DATE, allowNull: true },
     },
