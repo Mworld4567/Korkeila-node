@@ -3369,6 +3369,59 @@ const designController = () => {
                 });
             }
         },
+        bulkDelete: async (req, res) => {
+            const transaction = req.transaction || null;
+            try {
+                const ids = req.body.ids;
+                if (!Array.isArray(ids) || !ids.length) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please provide an array of design IDs",
+                    });
+                }
+
+                const numericIds = ids.map((id) => parseInt(id, 10)).filter((id) => Number.isFinite(id));
+                if (!numericIds.length) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "No valid design IDs provided",
+                    });
+                }
+
+                // Delete related records in parallel
+                await Promise.all([
+                    DesignsDiamondDetails.destroy({
+                        where: { design_id: { [Op.in]: numericIds } },
+                        transaction,
+                    }),
+                    DesignsImages.destroy({
+                        where: { design_id: { [Op.in]: numericIds } },
+                        transaction,
+                    }),
+                    DesignTranslation.destroy({
+                        where: { design_id: { [Op.in]: numericIds } },
+                        transaction,
+                    }),
+                ]);
+
+                const deletedCount = await Designs.destroy({
+                    where: { id: { [Op.in]: numericIds } },
+                    transaction,
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: `${deletedCount} design(s) deleted successfully`,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
         variantDetailsForEcom: async (req, res) => {
             try {
                 // Validate product_id
@@ -5435,7 +5488,7 @@ const designController = () => {
 
                 let totalPriceValue = null;
                 if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
-                    totalPriceValue = formattedPrice;
+                    totalPriceValue = `${startingFromText} ${formattedPrice}`;
                 } else if (priceFlagValue === 2) {
                     totalPriceValue = `${startingFromText} ${formattedPrice} ${enquirePriceText}`;
                 } else if (priceFlagValue === 4 && dbPrice === 0) {
@@ -5771,28 +5824,25 @@ const designController = () => {
                     }
                 }
 
-                const csv = await converter.json2csvAsync(csvData);
+                const ExcelJS = require('exceljs');
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('Designs');
+
+                const headers = Object.keys(csvData[0]);
+                worksheet.addRow(headers);
+                worksheet.getRow(1).font = { bold: true };
+
+                for (const row of csvData) {
+                    worksheet.addRow(headers.map(h => row[h] ?? ''));
+                }
 
                 const timestamp = new Date().toISOString().split('T')[0];
-                const filename = `designs_export_${timestamp}.csv`;
+                const filename = `designs_export_${timestamp}.xlsx`;
 
-                const csvFile = {
-                    name: filename,
-                    type: "text/csv",
-                    data: csv,
-                    path: ["design", "csv", filename].join("/"),
-                };
-
-                await saveToBucket(csvFile);
-
-                const s3Key = `${process.env.AWS_BUCKET_NAME}/design/csv/${filename}`;
-                const url = await getPresignedUrl(s3Key, 3600 * 24 * 7);
-
-                return res.status(200).json({
-                    success: true,
-                    message: "Design variants exported successfully",
-                    csv_url: url,
-                });
+                res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                await workbook.xlsx.write(res);
+                return res.end();
             } catch (error) {
                 console.log(error);
                 logError(error, req);

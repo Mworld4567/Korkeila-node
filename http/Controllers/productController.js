@@ -951,7 +951,7 @@ const productController = () => {
                     // 2 => "Starting From {design.price}" + enquire (if design.price=0 then use calculated)
                     // 4 => "Please enquire"
                     if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
-                        designData.total_price = `${priceMessages.currencySymbol}${calculatedRounded}`;
+                        designData.total_price = `${startingFromText} ${priceMessages.currencySymbol}${calculatedRounded}`;
                     }
                     else if (priceFlagValue === 2) {
                         const basePrice = dbPrice > 0 ? dbPriceRounded : calculatedRounded;
@@ -1403,7 +1403,7 @@ const productController = () => {
                         const formattedPrice = formatPriceInCurrency(priceNum, requestedCurrency, currencyRate);
                         if (priceFlagValue === 1 || priceFlagValue === priceFlag.Set) {
                             totalPriceValue = formattedPrice;
-                            totalPriceValueOutside = totalPriceValue;
+                            totalPriceValueOutside = `${startingFromText} ${formattedPrice}`;
                         } else if (priceFlagValue === 2) {
                             totalPriceValue = `${startingFromText} ${formattedPrice} ${enquirePriceText}`;
                             totalPriceValueOutside = `${startingFromText} ${formattedPrice}`;
