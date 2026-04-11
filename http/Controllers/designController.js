@@ -31,7 +31,7 @@ const { getCurrencyRate, formatPriceInCurrency } = require("../../helpers/curren
 const { getCutNameForLanguage } = require("../../helpers/cutTranslationHelper");
 const converter = require("json-2-csv");
 const CategoryTranslation = require("../../Models/CategoryTranslation");
-
+//nirmit
 const designController = () => {
     return {
         read: async (req, res) => {
