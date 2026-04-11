@@ -931,9 +931,15 @@ const designController = () => {
                 let isFilterAvailable;
                 if (productId === 55) {
                     isFilterAvailable = filterAvailable.TheFlowerType; // 4
-                } else if (categoryId.Bracelets === product.category_id) {
+                } 
+                // else if (categoryId.Bracelets === product.category_id) {
+                //     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                // } 
+                else if (req.body.price_flag == 2 || req.body.price_flag == 4)
+                {
                     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
-                } else if (req.body.diamond_design_detail.length === 0) {
+                }
+                else if (req.body.diamond_design_detail.length === 0) {
                     isFilterAvailable = filterAvailable.NoDiamond;
                 } else if (req.body.diamond_design_detail.length === 1) {
                     isFilterAvailable = filterAvailable.SingleDiamond;
@@ -1594,9 +1600,15 @@ const designController = () => {
                 let isFilterAvailable;
                 if (productId === 55) {
                     isFilterAvailable = filterAvailable.TheFlowerType; // 4
-                } else if (categoryId.Bracelets === product.category_id) {
+                }
+                //  else if (categoryId.Bracelets === product.category_id) {
+                //     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                // } 
+                else if (req.body.price_flag == 2 || req.body.price_flag == 4)
+                {
                     isFilterAvailable = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
-                } else if (req.body.diamond_design_detail.length === 0) {
+                }
+                else if (req.body.diamond_design_detail.length === 0) {
                     isFilterAvailable = filterAvailable.NoDiamond;
                 } else if (req.body.diamond_design_detail.length === 1) {
                     isFilterAvailable = filterAvailable.SingleDiamond;
@@ -3254,7 +3266,8 @@ const designController = () => {
                 const responseData = {
                     cuts: cutMasters.map(cut => ({
                         id: cut.id,
-                        name: getCutNameForLanguage(cut.cut_name, languageId),
+                        //name: getCutNameForLanguage(cut.cut_name, languageId),
+                        name: cut.cut_name,
                         code: cut.cut_code,
                         image: cut.cut_image
                     })),
@@ -4387,10 +4400,20 @@ const designController = () => {
                                 designArray[i].is_filter_available = filterAvailable.TheFlowerType; // 4
                                 continue;
                             }
-                            else if (categoryId.Bracelets === designArray[i].category_id) {
+                            else if (designArray[i].product_id === 55) 
+                            {
+                                designArray[i].is_filter_available = filterAvailable.TheFlowerType; // 4
+                                continue;
+                            }
+                            else if (parseInt(designArray[i].price_flag) === 2 || parseInt(designArray[i].price_flag) === 4) 
+                            {
                                 designArray[i].is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
                                 continue;
                             }
+                            // else if (categoryId.Bracelets === designArray[i].category_id) {
+                            //     designArray[i].is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                            //     continue;
+                            // }
 
                             const diamondCount = diamondDetailsCountMap.get(i) || 0;
                             if (diamondCount === 0) {
@@ -4949,11 +4972,19 @@ const designController = () => {
                             const productId = existingDesign.product_id || designObj.product_id;
                             if (productId === 55) {
                                 fieldsToUpdate.is_filter_available = filterAvailable.TheFlowerType; // 4
-                            } else if (categoryId.Bracelets === existingDesign.category_id) {
-                                fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
-                            } else if (diamondDetailsArray.length > 0) {
+                            } 
+                            // else if (categoryId.Bracelets === existingDesign.category_id) 
+                            //     {
+                            //     fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                            // } 
+                            else if (existingDesign.price_flag === 2 || existingDesign.price_flag === 4) 
+                            {
+                               fieldsToUpdate.is_filter_available = filterAvailable.PendantsAndNecklacesAndBraceletsAndEarrings; // 3
+                            }
+                            else if (diamondDetailsArray.length > 0) {
                                 // We're updating diamond details - set based on new count
-                                if (diamondDetailsArray.length === 0) {
+                                if (diamondDetailsArray.length === 0)
+                                {
                                     fieldsToUpdate.is_filter_available = filterAvailable.NoDiamond;
                                 } else if (diamondDetailsArray.length === 1) {
                                     fieldsToUpdate.is_filter_available = filterAvailable.SingleDiamond;
