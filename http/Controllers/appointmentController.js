@@ -447,6 +447,65 @@ const appointmentController = () => {
                     message: "Internal server error",
                 });
             }
+        },
+        readInquiries: async (req, res) => {
+            try {
+                const inquiries = await Appointment.findAll({
+                    where: {
+                        deleted_at: null,
+                    },
+                    order: [['id', 'DESC']],
+                });
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Inquiries fetched successfully",
+                    data: inquiries,
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
+        },
+        deleteInquiry: async (req, res) => {
+            try {
+                const inquiry = await Appointment.findOne({
+                    where: {
+                        id: req.params.id,
+                        deleted_at: null,
+                    },
+                });
+
+                if (!inquiry) {
+                    return res.status(409).json({
+                        success: false,
+                        message: "Inquiry not found",
+                    });
+                }
+
+                const dateTime = dateFunc();
+
+                await Appointment.update(
+                    { deleted_at: dateTime },
+                    { where: { id: req.params.id } }
+                );
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Inquiry deleted successfully",
+                });
+            } catch (error) {
+                console.log(error);
+                logError(error, req);
+                return res.status(500).json({
+                    success: false,
+                    message: "Internal server error",
+                });
+            }
         }
     };
 };

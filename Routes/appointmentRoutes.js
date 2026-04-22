@@ -15,6 +15,8 @@ Router.get("/get-disabled-date-and-time-slots", appointmentController().getDisab
 
 Router.delete("/delete-disabled-date-and-time-slots/:date_id/:time_slot_id", authMiddleware, appointmentController().deleteDisabledDateAndTimeSlots);
 
+Router.get("/inquiries", authMiddleware, appointmentController().readInquiries);
+Router.delete("/inquiries/:id", authMiddleware, appointmentController().deleteInquiry);
 
 
 
